@@ -40,7 +40,7 @@ function SortableItem({
         <div className="flex-1">
           <div className="font-medium">{todo.title}</div>
           <div className="text-xs text-slate-500">
-            客户ID: {todo.customerId} {todo.priority ? `· 优先级: ${todo.priority}` : ""} {todo.reminderTime ? `· 提醒: ${todo.reminderTime}` : ""}
+            客户ID: {todo.customerId} {todo.priority ? `· 优先级: ${todo.priority}` : ""} {todo.reminderTime ? `· 提醒: ${todo.reminderTime}` : ""} {todo.remindBeforeMinutes ? `· 提前: ${todo.remindBeforeMinutes}分钟` : ""}
           </div>
           {todo.summary && <div className="mt-1 text-sm text-slate-600">{todo.summary}</div>}
           {!!todo.orderDraft.items.length && (
@@ -110,6 +110,7 @@ export function TodoPage() {
     title: string;
     priority?: Todo["priority"];
     reminderTime?: string;
+    remindBeforeMinutes?: number;
     tags?: string[];
     summary?: string;
     orderDraftText?: string;
@@ -131,6 +132,7 @@ export function TodoPage() {
       title: string;
       priority?: Todo["priority"];
       reminderTime?: string;
+      remindBeforeMinutes?: number;
       tags?: string[];
       summary?: string;
       orderDraftText?: string;
@@ -143,6 +145,7 @@ export function TodoPage() {
       summary: payload.summary || undefined,
       priority: payload.priority,
       reminderTime: payload.reminderTime,
+      remindBeforeMinutes: payload.remindBeforeMinutes,
       tags: payload.tags,
       orderDraft: {
         items: payload.orderDraftText
@@ -174,8 +177,9 @@ export function TodoPage() {
       title: parsed.title,
       priority: parsed.priority,
       reminderTime: parsed.reminderTime,
+      remindBeforeMinutes: parsed.remindBeforeMinutes,
       tags: parsed.tags,
-      summary,
+      summary: [summary.trim(), parsed.note?.trim()].filter(Boolean).join("\n"),
       orderDraftText,
       customerName,
     };
@@ -298,7 +302,7 @@ export function TodoPage() {
             setCustomerInput(customer.name);
           }}
         />
-        <input aria-label="快捷录入" ref={quickInputRef} className="rounded border px-2 py-2" placeholder="快捷录入：!!! 客户A 14:30 #回访" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
+        <input aria-label="快捷录入" ref={quickInputRef} className="rounded border px-2 py-2" placeholder="快捷录入：!!! 跟进报价 @14:30 #回访 r:30m note:确认样机" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
         <input aria-label="沟通纪要" className="rounded border px-2 py-2" placeholder="沟通纪要（选填）" value={summary} onChange={(e) => setSummary(e.target.value)} />
         <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
         <button className="rounded bg-sky-600 px-3 py-2 text-white md:col-span-2" onClick={createTodo}>

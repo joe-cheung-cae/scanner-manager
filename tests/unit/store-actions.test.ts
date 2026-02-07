@@ -50,6 +50,19 @@ describe("store actions", () => {
     expect(todo.orderConversion?.orderId).toBe(state.orders[0].id);
   });
 
+  it("新增待办应保存提醒提前分钟数", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户T" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "提醒测试",
+      customerId,
+      reminderTime: "10:00",
+      remindBeforeMinutes: 30,
+    });
+
+    const todo = useAppStore.getState().todos.find((x) => x.id === todoId);
+    expect(todo?.remindBeforeMinutes).toBe(30);
+  });
+
   it("订单状态流转应追加时间线", () => {
     const customerId = useAppStore.getState().addCustomer({ name: "客户B" });
     const todoId = useAppStore.getState().addTodo({

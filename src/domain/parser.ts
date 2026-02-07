@@ -4,10 +4,14 @@ export interface QuickAddParseResult {
   title: string;
   priority?: Priority;
   reminderTime?: string;
+  remindBeforeMinutes?: number;
+  note?: string;
   tags: string[];
 }
 
 const TIME_RE = /\b(?:at\s+)?([01]\d|2[0-3]):([0-5]\d)\b/i;
+const AT_TIME_RE = /@([01]\d|2[0-3]):([0-5]\d)\b/gi;
+const REMIND_RE = /\br:(\d+)([mh])\b/gi;
 
 export function parseQuickAdd(input: string): QuickAddParseResult {
   let working = input.trim();
@@ -27,17 +31,43 @@ export function parseQuickAdd(input: string): QuickAddParseResult {
   const tags = Array.from(working.matchAll(/#([^\s#]+)/g)).map((m) => m[1]);
   working = working.replace(/#([^\s#]+)/g, "").trim();
 
-  const timeMatch = working.match(TIME_RE);
   let reminderTime: string | undefined;
-  if (timeMatch) {
-    reminderTime = `${timeMatch[1]}:${timeMatch[2]}`;
-    working = working.replace(timeMatch[0], "").trim();
+  const atMatches = Array.from(working.matchAll(AT_TIME_RE));
+  if (atMatches.length > 0) {
+    const latest = atMatches[atMatches.length - 1];
+    reminderTime = `${latest[1]}:${latest[2]}`;
+    working = working.replace(AT_TIME_RE, "").trim();
+  } else {
+    const timeMatch = working.match(TIME_RE);
+    if (timeMatch) {
+      reminderTime = `${timeMatch[1]}:${timeMatch[2]}`;
+      working = working.replace(timeMatch[0], "").trim();
+    }
+  }
+
+  let remindBeforeMinutes: number | undefined;
+  const remindMatches = Array.from(working.matchAll(REMIND_RE));
+  if (remindMatches.length > 0) {
+    const latest = remindMatches[remindMatches.length - 1];
+    const count = Number(latest[1]);
+    const unit = latest[2].toLowerCase();
+    remindBeforeMinutes = unit === "h" ? count * 60 : count;
+    working = working.replace(REMIND_RE, "").trim();
+  }
+
+  let note: string | undefined;
+  const noteMatch = working.match(/\snote:(.+)$/i);
+  if (noteMatch) {
+    note = noteMatch[1].trim();
+    working = working.slice(0, noteMatch.index).trim();
   }
 
   return {
     title: working,
     priority,
     reminderTime,
+    remindBeforeMinutes,
+    note,
     tags,
   };
 }

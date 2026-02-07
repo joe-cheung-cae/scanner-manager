@@ -59,6 +59,7 @@ export interface Todo {
   summary?: string;
   priority?: Priority;
   reminderTime?: string;
+  remindBeforeMinutes?: number;
   tags?: string[];
   completed: boolean;
   orderDraft: OrderDraft;
