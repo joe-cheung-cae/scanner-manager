@@ -37,14 +37,13 @@ interface AppState {
     date?: string;
     title: string;
     customerId: string;
-    summary?: string;
     priority?: Todo["priority"];
     reminderTime?: string;
     remindBeforeMinutes?: number;
     tags?: string[];
     orderDraft?: { items: DraftItem[]; stage?: string; intentType?: "standard" | "custom" | "mixed" };
   }) => string;
-  updateTodo: (id: string, patch: Partial<Pick<Todo, "title" | "summary" | "priority" | "reminderTime" | "remindBeforeMinutes" | "tags">>) => void;
+  updateTodo: (id: string, patch: Partial<Pick<Todo, "title" | "priority" | "reminderTime" | "remindBeforeMinutes" | "tags">>) => void;
   deleteTodo: (id: string) => void;
   setTodoCompleted: (id: string, completed: boolean) => void;
   reorderTodos: (date: string, ids: string[]) => void;
@@ -152,7 +151,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       date,
       title: payload.title,
       customerId: payload.customerId,
-      summary: payload.summary,
       priority: payload.priority,
       reminderTime: payload.reminderTime,
       remindBeforeMinutes: payload.remindBeforeMinutes,

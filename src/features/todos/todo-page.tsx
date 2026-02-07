@@ -42,7 +42,6 @@ function SortableItem({
           <div className="text-xs text-slate-500">
             客户ID: {todo.customerId} {todo.priority ? `· 优先级: ${todo.priority}` : ""} {todo.reminderTime ? `· 提醒: ${todo.reminderTime}` : ""} {todo.remindBeforeMinutes ? `· 提前: ${todo.remindBeforeMinutes}分钟` : ""}
           </div>
-          {todo.summary && <div className="mt-1 text-sm text-slate-600">{todo.summary}</div>}
           {!!todo.orderDraft.items.length && (
             <div className="mt-1 text-xs text-slate-600">订单草稿条目: {todo.orderDraft.items.length}</div>
           )}
@@ -91,8 +90,13 @@ export function TodoPage() {
 
   const [customerInput, setCustomerInput] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [titleInput, setTitleInput] = useState("");
+  const [priorityInput, setPriorityInput] = useState<Todo["priority"]>("med");
+  const [reminderTimeInput, setReminderTimeInput] = useState("");
+  const [remindBeforeInput, setRemindBeforeInput] = useState(30);
+  const [tagsInput, setTagsInput] = useState("");
+  const [advancedMode, setAdvancedMode] = useState(false);
   const [quickInput, setQuickInput] = useState("");
-  const [summary, setSummary] = useState("");
   const [orderDraftText, setOrderDraftText] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "done">("pending");
@@ -100,9 +104,7 @@ export function TodoPage() {
   const [pendingDeleteTodoId, setPendingDeleteTodoId] = useState<string | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editSummary, setEditSummary] = useState("");
   const [initialEditTitle, setInitialEditTitle] = useState("");
-  const [initialEditSummary, setInitialEditSummary] = useState("");
   const [confirmDiscardTodoDetail, setConfirmDiscardTodoDetail] = useState(false);
   const [duplicateCandidates, setDuplicateCandidates] = useState<Customer[]>([]);
   const [confirmDuplicateCustomer, setConfirmDuplicateCustomer] = useState(false);
@@ -112,7 +114,6 @@ export function TodoPage() {
     reminderTime?: string;
     remindBeforeMinutes?: number;
     tags?: string[];
-    summary?: string;
     orderDraftText?: string;
     customerName: string;
   } | null>(null);
@@ -123,7 +124,7 @@ export function TodoPage() {
     const filteredByStatus = filter === "all" ? list : list.filter((x) => (filter === "pending" ? !x.completed : x.completed));
     const q = search.trim().toLowerCase();
     if (!q) return filteredByStatus;
-    return filteredByStatus.filter((todo) => [todo.title, todo.summary, todo.tags?.join(" ")].join(" ").toLowerCase().includes(q));
+    return filteredByStatus.filter((todo) => [todo.title, todo.tags?.join(" ")].join(" ").toLowerCase().includes(q));
   }, [todos, selectedDate, filter, search]);
 
   function createTodoForCustomer(
@@ -134,7 +135,6 @@ export function TodoPage() {
       reminderTime?: string;
       remindBeforeMinutes?: number;
       tags?: string[];
-      summary?: string;
       orderDraftText?: string;
     },
   ) {
@@ -142,7 +142,6 @@ export function TodoPage() {
       date: selectedDate,
       title: payload.title,
       customerId,
-      summary: payload.summary || undefined,
       priority: payload.priority,
       reminderTime: payload.reminderTime,
       remindBeforeMinutes: payload.remindBeforeMinutes,
@@ -160,26 +159,29 @@ export function TodoPage() {
       },
     });
 
+    setTitleInput("");
+    setPriorityInput("med");
+    setReminderTimeInput("");
+    setRemindBeforeInput(30);
+    setTagsInput("");
     setQuickInput("");
-    setSummary("");
     setOrderDraftText("");
   }
 
   function createTodo() {
-    if (!quickInput.trim()) return;
-    const parsed = parseQuickAdd(quickInput);
-    if (!parsed.title.trim()) return;
+    const parsed = advancedMode ? parseQuickAdd(quickInput) : undefined;
+    const title = advancedMode ? parsed?.title || "" : titleInput.trim();
+    if (!title.trim()) return;
 
     const customerName = customerInput.trim();
     if (!customerName) return;
 
     const payload = {
-      title: parsed.title,
-      priority: parsed.priority,
-      reminderTime: parsed.reminderTime,
-      remindBeforeMinutes: parsed.remindBeforeMinutes,
-      tags: parsed.tags,
-      summary: [summary.trim(), parsed.note?.trim()].filter(Boolean).join("\n"),
+      title,
+      priority: advancedMode ? parsed?.priority : priorityInput,
+      reminderTime: advancedMode ? parsed?.reminderTime : reminderTimeInput || undefined,
+      remindBeforeMinutes: advancedMode ? parsed?.remindBeforeMinutes : remindBeforeInput,
+      tags: advancedMode ? parsed?.tags : tagsInput.split(",").map((x) => x.trim()).filter(Boolean),
       orderDraftText,
       customerName,
     };
@@ -217,7 +219,7 @@ export function TodoPage() {
         const target = event.target as HTMLElement | null;
         if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
         event.preventDefault();
-        quickInputRef.current?.focus();
+        if (advancedMode) quickInputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -244,19 +246,17 @@ export function TodoPage() {
   const closeTodoDetail = () => {
     setEditingTodoId(null);
     setEditTitle("");
-    setEditSummary("");
     setInitialEditTitle("");
-    setInitialEditSummary("");
     setConfirmDiscardTodoDetail(false);
   };
 
   const saveTodoDetail = () => {
     if (!editingTodoId || !editTitle.trim()) return;
-    updateTodo(editingTodoId, { title: editTitle.trim(), summary: editSummary || undefined });
+    updateTodo(editingTodoId, { title: editTitle.trim() });
     closeTodoDetail();
   };
 
-  const todoDetailDirty = editTitle !== initialEditTitle || editSummary !== initialEditSummary;
+  const todoDetailDirty = editTitle !== initialEditTitle;
   const requestCloseTodoDetail = () => {
     if (!editingTodoId) return;
     if (!todoDetailDirty) {
@@ -302,8 +302,36 @@ export function TodoPage() {
             setCustomerInput(customer.name);
           }}
         />
-        <input aria-label="快捷录入" ref={quickInputRef} className="rounded border px-2 py-2" placeholder="快捷录入：!!! 跟进报价 @14:30 #回访 r:30m note:确认样机" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
-        <input aria-label="沟通纪要" className="rounded border px-2 py-2" placeholder="沟通纪要（选填）" value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <input aria-label="待办标题" className="rounded border px-2 py-2" placeholder="待办标题（必填）" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
+        <select aria-label="优先级" className="rounded border px-2 py-2" value={priorityInput} onChange={(e) => setPriorityInput(e.target.value as Todo["priority"])}>
+          <option value="low">低</option>
+          <option value="med">中</option>
+          <option value="high">高</option>
+        </select>
+        <input aria-label="提醒时间" className="rounded border px-2 py-2" placeholder="HH:mm（选填）" value={reminderTimeInput} onChange={(e) => setReminderTimeInput(e.target.value)} />
+        <select aria-label="提前提醒" className="rounded border px-2 py-2" value={String(remindBeforeInput)} onChange={(e) => setRemindBeforeInput(Number(e.target.value))}>
+          <option value="15">提前15分钟</option>
+          <option value="30">提前30分钟</option>
+          <option value="60">提前60分钟</option>
+          <option value="120">提前120分钟</option>
+        </select>
+        <input aria-label="标签" className="rounded border px-2 py-2 md:col-span-2" placeholder="标签（逗号分隔，如：回访,报价）" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} />
+        <button
+          className="rounded bg-slate-200 px-3 py-2 text-sm md:col-span-2"
+          onClick={() => setAdvancedMode((v) => !v)}
+        >
+          {advancedMode ? "收起高级模式" : "展开高级模式"}
+        </button>
+        {advancedMode && (
+          <input
+            aria-label="快捷录入高级模式"
+            ref={quickInputRef}
+            className="rounded border px-2 py-2 md:col-span-2"
+            placeholder="高级模式：!!! 跟进报价 @14:30 #回访 r:30m"
+            value={quickInput}
+            onChange={(e) => setQuickInput(e.target.value)}
+          />
+        )}
         <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
         <button className="rounded bg-sky-600 px-3 py-2 text-white md:col-span-2" onClick={createTodo}>
           新建待办（Ctrl/Cmd+Enter）
@@ -335,17 +363,6 @@ export function TodoPage() {
                   placeholder="请输入待办标题"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm text-slate-600" htmlFor="todo-detail-summary-input">详情纪要</label>
-                <textarea
-                  id="todo-detail-summary-input"
-                  aria-label="详情纪要"
-                  className="min-h-32 w-full rounded border px-2 py-2"
-                  value={editSummary}
-                  onChange={(e) => setEditSummary(e.target.value)}
-                  placeholder="请输入沟通纪要"
-                />
-              </div>
               <div className="flex gap-2">
                 <button className="flex-1 rounded bg-emerald-600 px-3 py-2 text-white" onClick={saveTodoDetail}>保存详情</button>
                 <button className="flex-1 rounded bg-slate-200 px-3 py-2" onClick={requestCloseTodoDetail}>取消</button>
@@ -368,9 +385,7 @@ export function TodoPage() {
                 onEdit={(selected) => {
                   setEditingTodoId(selected.id);
                   setEditTitle(selected.title);
-                  setEditSummary(selected.summary || "");
                   setInitialEditTitle(selected.title);
-                  setInitialEditSummary(selected.summary || "");
                 }}
               />
             ))}

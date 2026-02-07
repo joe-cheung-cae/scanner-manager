@@ -5,7 +5,6 @@ export interface QuickAddParseResult {
   priority?: Priority;
   reminderTime?: string;
   remindBeforeMinutes?: number;
-  note?: string;
   tags: string[];
 }
 
@@ -55,19 +54,11 @@ export function parseQuickAdd(input: string): QuickAddParseResult {
     working = working.replace(REMIND_RE, "").trim();
   }
 
-  let note: string | undefined;
-  const noteMatch = working.match(/\snote:(.+)$/i);
-  if (noteMatch) {
-    note = noteMatch[1].trim();
-    working = working.slice(0, noteMatch.index).trim();
-  }
-
   return {
     title: working,
     priority,
     reminderTime,
     remindBeforeMinutes,
-    note,
     tags,
   };
 }

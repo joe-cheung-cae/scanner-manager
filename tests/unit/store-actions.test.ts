@@ -23,7 +23,7 @@ describe("store actions", () => {
       customerId,
     });
 
-    useAppStore.getState().updateTodo(todoId, { title: "二次沟通", summary: "更新纪要" });
+    useAppStore.getState().updateTodo(todoId, { title: "二次沟通" });
     useAppStore.getState().setTodoCompleted(todoId, true);
     useAppStore.getState().setTodoCompleted(todoId, false);
     useAppStore.getState().deleteTodo(todoId);
@@ -61,6 +61,27 @@ describe("store actions", () => {
 
     const todo = useAppStore.getState().todos.find((x) => x.id === todoId);
     expect(todo?.remindBeforeMinutes).toBe(30);
+  });
+
+  it("新增待办不应再包含沟通纪要字段", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户NoSummary" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "无纪要测试",
+      customerId,
+    });
+    const todo = useAppStore.getState().todos.find((x) => x.id === todoId);
+    expect("summary" in (todo || {})).toBe(false);
+  });
+
+  it("待办编辑应仅更新标题", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户Edit" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "旧标题",
+      customerId,
+    });
+    useAppStore.getState().updateTodo(todoId, { title: "新标题" });
+    const todo = useAppStore.getState().todos.find((x) => x.id === todoId);
+    expect(todo?.title).toBe("新标题");
   });
 
   it("订单状态流转应追加时间线", () => {

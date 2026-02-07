@@ -56,7 +56,6 @@ export interface Todo {
   date: string;
   title: string;
   customerId: string;
-  summary?: string;
   priority?: Priority;
   reminderTime?: string;
   remindBeforeMinutes?: number;

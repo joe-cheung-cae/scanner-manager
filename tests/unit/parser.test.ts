@@ -17,12 +17,11 @@ describe("parseQuickAdd", () => {
     expect(parsed.title).toBe("方案沟通");
   });
 
-  it("应解析模板化键值：@时间、r提醒与note", () => {
-    const parsed = parseQuickAdd("!! 跟进报价 @14:30 #回访 r:2h note:确认样机配置");
+  it("应解析模板化键值：@时间与r提醒", () => {
+    const parsed = parseQuickAdd("!! 跟进报价 @14:30 #回访 r:2h");
     expect(parsed.priority).toBe("med");
     expect(parsed.reminderTime).toBe("14:30");
     expect(parsed.remindBeforeMinutes).toBe(120);
-    expect(parsed.note).toBe("确认样机配置");
     expect(parsed.tags).toEqual(["回访"]);
     expect(parsed.title).toBe("跟进报价");
   });

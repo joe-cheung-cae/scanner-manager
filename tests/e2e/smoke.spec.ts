@@ -11,7 +11,9 @@ test("主流程烟雾测试", async ({ page }) => {
   // 2) 创建 todo（含订单草稿项）
   await page.goto("/");
   await page.getByPlaceholder("客户名称（必填）").fill("E2E客户");
-  await page.getByPlaceholder("快捷录入：!!! 客户A 14:30 #回访").fill("!! E2E跟进 10:30 #样机");
+  await page.getByLabel("待办标题").fill("E2E跟进");
+  await page.getByLabel("提醒时间").fill("10:30");
+  await page.getByLabel("标签").fill("样机");
   await page.getByPlaceholder("订单草稿（选填，默认定制条目）").fill("定制需求：蓝牙5.0 + 充电底座");
   await page.getByRole("button", { name: "新建待办" }).click();
 
