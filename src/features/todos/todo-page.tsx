@@ -8,6 +8,7 @@ import { useAppStore } from "@/store/appStore";
 import { parseQuickAdd } from "@/domain/parser";
 import { todayYmd } from "@/lib/date";
 import type { OrderType, Todo } from "@/domain/types";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 function SortableItem({
   todo,
@@ -93,6 +94,7 @@ export function TodoPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "done">("pending");
   const [conversionTodoId, setConversionTodoId] = useState<string | null>(null);
+  const [pendingDeleteTodoId, setPendingDeleteTodoId] = useState<string | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editSummary, setEditSummary] = useState("");
@@ -272,7 +274,7 @@ export function TodoPage() {
                 todo={todo}
                 onComplete={setConversionTodoId}
                 onUncomplete={(id) => setTodoCompleted(id, false)}
-                onDelete={deleteTodo}
+                onDelete={setPendingDeleteTodoId}
                 onEdit={(selected) => {
                   setEditingTodoId(selected.id);
                   setEditTitle(selected.title);
@@ -298,6 +300,19 @@ export function TodoPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!pendingDeleteTodoId}
+        title="确认删除待办"
+        description="删除后无法恢复，确定继续吗？"
+        confirmText="确认删除"
+        cancelText="取消"
+        onConfirm={() => {
+          if (pendingDeleteTodoId) deleteTodo(pendingDeleteTodoId);
+          setPendingDeleteTodoId(null);
+        }}
+        onCancel={() => setPendingDeleteTodoId(null)}
+      />
     </section>
   );
 }

@@ -10,6 +10,7 @@ import {
   importProductsFromCsv,
 } from "@/lib/import-export/csv";
 import { buildProductIndex, searchProducts } from "@/lib/search/productIndex";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 export function ProductsPage() {
   const products = useAppStore((s) => s.products);
@@ -28,6 +29,8 @@ export function ProductsPage() {
   const [wired, setWired] = useState("");
   const [wireless, setWireless] = useState("");
   const [importError, setImportError] = useState("");
+  const [pendingImportProducts, setPendingImportProducts] = useState<typeof products | null>(null);
+  const [pendingImportSource, setPendingImportSource] = useState<"CSV" | "JSON" | null>(null);
 
   const index = useMemo(() => buildProductIndex(products), [products]);
   const list = useMemo(
@@ -98,7 +101,8 @@ export function ProductsPage() {
                 return;
               }
               setImportError("");
-              replaceProducts(result.products);
+              setPendingImportProducts(result.products);
+              setPendingImportSource("CSV");
             }}
           />
           <input
@@ -114,12 +118,30 @@ export function ProductsPage() {
                 return;
               }
               setImportError("");
-              replaceProducts(result.products);
+              setPendingImportProducts(result.products);
+              setPendingImportSource("JSON");
             }}
           />
         </div>
         {importError && <p className="mt-2 text-sm text-red-600">{importError}</p>}
       </div>
+
+      <ConfirmModal
+        open={!!pendingImportProducts}
+        title="确认覆盖导入"
+        description={`检测到将写入 ${pendingImportProducts?.length || 0} 条产品数据（来源：${pendingImportSource || "未知"}）。是否继续？`}
+        confirmText="确认导入"
+        cancelText="取消"
+        onConfirm={() => {
+          if (pendingImportProducts) replaceProducts(pendingImportProducts);
+          setPendingImportProducts(null);
+          setPendingImportSource(null);
+        }}
+        onCancel={() => {
+          setPendingImportProducts(null);
+          setPendingImportSource(null);
+        }}
+      />
 
       <div className="grid gap-3 md:grid-cols-2">
         {list.map((p) => (
