@@ -58,6 +58,7 @@ interface AppState {
     itemIndex: number,
     payload?: Partial<Pick<Product, "model" | "name" | "status" | "customSummary" | "version">>,
   ) => string;
+  undoArchiveCustomItem: (orderId: string, itemIndex: number) => { ok: boolean; message?: string; recycleId?: string };
   deleteOrderToRecycleBin: (orderId: string) => { ok: boolean; message?: string };
   deleteCustomerToRecycleBin: (customerId: string) => { ok: boolean; message?: string };
   deleteProductToRecycleBin: (productId: string) => { ok: boolean; message?: string };
@@ -341,6 +342,61 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ orders, products });
     debouncePersist({ customers: state.customers, todos: state.todos, orders, products, recycleBin: state.recycleBin });
     return productId;
+  },
+  undoArchiveCustomItem(orderId, itemIndex) {
+    const state = get();
+    const order = state.orders.find((o) => o.id === orderId);
+    if (!order) return { ok: false, message: "未找到订单。" };
+    const item = order.items[itemIndex];
+    if (!item || item.kind !== "archivedCustom" || !item.productId) return { ok: false, message: "该条目不是可撤销的归档条目。" };
+
+    const product = state.products.find((p) => p.id === item.productId);
+    if (!product) return { ok: false, message: "关联归档产品不存在。" };
+
+    const referencedByOthers = state.orders.some(
+      (o) =>
+        o.id !== orderId &&
+        o.items.some((it) => it.productId === item.productId),
+    );
+    if (referencedByOthers) return { ok: false, message: "该归档产品已被其他订单引用，无法撤销。" };
+
+    const now = Date.now();
+    const recycleId = createId();
+    const recycleItem: RecycleBinItem = {
+      id: recycleId,
+      entityType: "product",
+      entityId: product.id,
+      snapshot: product,
+      deletedAt: now,
+      reason: "撤销归档",
+    };
+
+    const orders = state.orders.map((o) => {
+      if (o.id !== orderId) return o;
+      const updatedItems = o.items.map((it, idx) =>
+        idx === itemIndex
+          ? {
+              ...it,
+              kind: "newCustom" as const,
+              productId: undefined,
+              snapshot: undefined,
+              customSpecText: product.customSummary || product.specs.notes || it.customSpecText || "已撤销归档条目",
+            }
+          : it,
+      );
+      return {
+        ...o,
+        items: updatedItems,
+        updatedAt: now,
+        timeline: [...o.timeline, { at: now, action: "定制条目已撤销归档", detail: product.model }],
+      };
+    });
+
+    const products = state.products.filter((p) => p.id !== product.id);
+    const recycleBin = [...state.recycleBin, recycleItem];
+    set({ orders, products, recycleBin });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders, products, recycleBin });
+    return { ok: true, recycleId };
   },
   deleteOrderToRecycleBin(orderId) {
     const state = get();

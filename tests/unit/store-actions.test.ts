@@ -86,6 +86,29 @@ describe("store actions", () => {
     expect(state.orders[0].items[0].productId).toBe(productId);
   });
 
+  it("归档条目应支持撤销：恢复为 newCustom 且产品移入回收站", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户Undo" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "撤销归档测试",
+      customerId,
+      orderDraft: { items: [{ kind: "newCustom", customSpecText: "定制规格XYZ", quantity: 1 }] },
+    });
+    useAppStore.getState().completeTodoWithConversion(todoId, "order");
+    const orderId = useAppStore.getState().orders[0].id;
+    const productId = useAppStore.getState().archiveCustomItemToProduct(orderId, 0);
+
+    const result = useAppStore.getState().undoArchiveCustomItem(orderId, 0);
+    expect(result.ok).toBe(true);
+
+    const state = useAppStore.getState();
+    expect(state.orders[0].items[0].kind).toBe("newCustom");
+    expect(state.orders[0].items[0].productId).toBeUndefined();
+    expect(state.orders[0].items[0].customSpecText).toBe("定制规格XYZ");
+    expect(state.products.some((x) => x.id === productId)).toBe(false);
+    expect(state.recycleBin.some((x) => x.entityType === "product" && x.entityId === productId)).toBe(true);
+    expect(state.orders[0].timeline.at(-1)?.action).toContain("已撤销归档");
+  });
+
   it("订单删除应进入回收站并可恢复", () => {
     const customerId = useAppStore.getState().addCustomer({ name: "客户R1" });
     const todoId = useAppStore.getState().addTodo({

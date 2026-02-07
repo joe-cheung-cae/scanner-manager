@@ -13,6 +13,7 @@ export function OrdersPage() {
   const transition = useAppStore((s) => s.transitionOrderStatus);
   const appendTimeline = useAppStore((s) => s.appendOrderTimeline);
   const archiveCustom = useAppStore((s) => s.archiveCustomItemToProduct);
+  const undoArchiveCustom = useAppStore((s) => s.undoArchiveCustomItem);
   const deleteOrder = useAppStore((s) => s.deleteOrderToRecycleBin);
 
   const [query, setQuery] = useState("");
@@ -123,6 +124,17 @@ export function OrdersPage() {
                     {item.kind === "newCustom" && (
                       <button className="mt-2 rounded bg-amber-600 px-2 py-1 text-xs text-white" onClick={() => archiveCustom(selected.id, idx)}>
                         归档为产品
+                      </button>
+                    )}
+                    {item.kind === "archivedCustom" && (
+                      <button
+                        className="mt-2 rounded bg-slate-700 px-2 py-1 text-xs text-white"
+                        onClick={() => {
+                          const result = undoArchiveCustom(selected.id, idx);
+                          setMessage(result.ok ? "已撤销归档，产品已移入回收站，可在回收站恢复。" : result.message || "撤销归档失败。");
+                        }}
+                      >
+                        撤销归档
                       </button>
                     )}
                   </div>
