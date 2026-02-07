@@ -98,6 +98,9 @@ export function TodoPage() {
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editSummary, setEditSummary] = useState("");
+  const [initialEditTitle, setInitialEditTitle] = useState("");
+  const [initialEditSummary, setInitialEditSummary] = useState("");
+  const [confirmDiscardTodoDetail, setConfirmDiscardTodoDetail] = useState(false);
   const quickInputRef = useRef<HTMLInputElement>(null);
 
   const dayTodos = useMemo(() => {
@@ -183,12 +186,25 @@ export function TodoPage() {
     setEditingTodoId(null);
     setEditTitle("");
     setEditSummary("");
+    setInitialEditTitle("");
+    setInitialEditSummary("");
+    setConfirmDiscardTodoDetail(false);
   };
 
   const saveTodoDetail = () => {
     if (!editingTodoId || !editTitle.trim()) return;
     updateTodo(editingTodoId, { title: editTitle.trim(), summary: editSummary || undefined });
     closeTodoDetail();
+  };
+
+  const todoDetailDirty = editTitle !== initialEditTitle || editSummary !== initialEditSummary;
+  const requestCloseTodoDetail = () => {
+    if (!editingTodoId) return;
+    if (!todoDetailDirty) {
+      closeTodoDetail();
+      return;
+    }
+    setConfirmDiscardTodoDetail(true);
   };
 
   return (
@@ -221,7 +237,7 @@ export function TodoPage() {
       </div>
 
       {editingTodoId && (
-        <div className="fixed inset-0 z-20 bg-black/40" onClick={closeTodoDetail}>
+        <div className="fixed inset-0 z-20 bg-black/40" onClick={requestCloseTodoDetail}>
           <aside
             role="dialog"
             aria-modal="true"
@@ -231,7 +247,7 @@ export function TodoPage() {
           >
             <div className="mb-3 flex items-center justify-between">
               <h3 id="todo-detail-title" className="text-lg font-semibold">待办详情</h3>
-              <button className="rounded bg-slate-200 px-2 py-1 text-sm" onClick={closeTodoDetail}>关闭</button>
+              <button className="rounded bg-slate-200 px-2 py-1 text-sm" onClick={requestCloseTodoDetail}>关闭</button>
             </div>
             <div className="space-y-3">
               <div>
@@ -258,7 +274,7 @@ export function TodoPage() {
               </div>
               <div className="flex gap-2">
                 <button className="flex-1 rounded bg-emerald-600 px-3 py-2 text-white" onClick={saveTodoDetail}>保存详情</button>
-                <button className="flex-1 rounded bg-slate-200 px-3 py-2" onClick={closeTodoDetail}>取消</button>
+                <button className="flex-1 rounded bg-slate-200 px-3 py-2" onClick={requestCloseTodoDetail}>取消</button>
               </div>
             </div>
           </aside>
@@ -279,6 +295,8 @@ export function TodoPage() {
                   setEditingTodoId(selected.id);
                   setEditTitle(selected.title);
                   setEditSummary(selected.summary || "");
+                  setInitialEditTitle(selected.title);
+                  setInitialEditSummary(selected.summary || "");
                 }}
               />
             ))}
@@ -312,6 +330,15 @@ export function TodoPage() {
           setPendingDeleteTodoId(null);
         }}
         onCancel={() => setPendingDeleteTodoId(null)}
+      />
+      <ConfirmModal
+        open={confirmDiscardTodoDetail}
+        title="确认撤销本次变更"
+        description="你有未保存的待办详情修改，确认取消并撤销吗？"
+        confirmText="确认撤销"
+        cancelText="继续编辑"
+        onConfirm={closeTodoDetail}
+        onCancel={() => setConfirmDiscardTodoDetail(false)}
       />
     </section>
   );

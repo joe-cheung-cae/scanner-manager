@@ -2,6 +2,83 @@
 
 import { useMemo, useState } from "react";
 import { useAppStore } from "@/store/appStore";
+import type { Customer } from "@/domain/types";
+import { ConfirmModal } from "@/components/confirm-modal";
+
+function EditableCustomerCard({
+  customer,
+  orderCount,
+  todoTitles,
+  onSave,
+}: {
+  customer: Customer;
+  orderCount: number;
+  todoTitles: string[];
+  onSave: (id: string, patch: Partial<Customer>) => void;
+}) {
+  const [draftPhone, setDraftPhone] = useState(customer.phone || "");
+  const [draftNotes, setDraftNotes] = useState(customer.notes || "");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const dirty = draftPhone !== (customer.phone || "") || draftNotes !== (customer.notes || "");
+
+  const requestCancel = () => {
+    if (!dirty) return;
+    setConfirmDiscard(true);
+  };
+
+  return (
+    <div className="rounded border bg-white p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium">{customer.name}</div>
+        <span className="text-xs text-slate-500">
+          关联订单 {orderCount} · 关联待办 {todoTitles.length}
+        </span>
+      </div>
+      <input
+        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        value={draftPhone}
+        onChange={(e) => setDraftPhone(e.target.value)}
+        placeholder="电话"
+      />
+      <textarea
+        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        value={draftNotes}
+        onChange={(e) => setDraftNotes(e.target.value)}
+        placeholder="备注"
+      />
+      <div className="mt-2 flex gap-2">
+        <button
+          className="flex-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white"
+          onClick={() => onSave(customer.id, { phone: draftPhone, notes: draftNotes })}
+          disabled={!dirty}
+        >
+          保存
+        </button>
+        <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" onClick={requestCancel} disabled={!dirty}>
+          取消
+        </button>
+      </div>
+      <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-600">
+        最近待办：
+        {todoTitles.slice(-3).join(" / ") || "无"}
+      </div>
+      <ConfirmModal
+        open={confirmDiscard}
+        title="确认撤销本次变更"
+        description="你有未保存的客户修改，确认取消并撤销吗？"
+        confirmText="确认撤销"
+        cancelText="继续编辑"
+        onConfirm={() => {
+          setDraftPhone(customer.phone || "");
+          setDraftNotes(customer.notes || "");
+          setConfirmDiscard(false);
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+    </div>
+  );
+}
 
 export function CustomersPage() {
   const customers = useAppStore((s) => s.customers);
@@ -39,31 +116,14 @@ export function CustomersPage() {
       </div>
       <input className="w-full rounded border bg-white px-2 py-2" placeholder="搜索客户" value={query} onChange={(e) => setQuery(e.target.value)} />
       <div className="grid gap-3 md:grid-cols-2">
-        {list.map((c) => (
-          <div key={c.id} className="rounded border bg-white p-3">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">{c.name}</div>
-              <span className="text-xs text-slate-500">
-                关联订单 {orders.filter((o) => o.customerId === c.id).length} · 关联待办 {todos.filter((t) => t.customerId === c.id).length}
-              </span>
-            </div>
-            <input
-              className="mt-2 w-full rounded border px-2 py-1 text-sm"
-              value={c.phone || ""}
-              onChange={(e) => updateCustomer(c.id, { phone: e.target.value })}
-              placeholder="电话"
-            />
-            <textarea
-              className="mt-2 w-full rounded border px-2 py-1 text-sm"
-              value={c.notes || ""}
-              onChange={(e) => updateCustomer(c.id, { notes: e.target.value })}
-              placeholder="备注"
-            />
-            <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-600">
-              最近待办：
-              {todos.filter((t) => t.customerId === c.id).slice(-3).map((t) => t.title).join(" / ") || "无"}
-            </div>
-          </div>
+        {list.map((customer) => (
+          <EditableCustomerCard
+            key={customer.id}
+            customer={customer}
+            orderCount={orders.filter((o) => o.customerId === customer.id).length}
+            todoTitles={todos.filter((t) => t.customerId === customer.id).map((t) => t.title)}
+            onSave={updateCustomer}
+          />
         ))}
       </div>
     </section>

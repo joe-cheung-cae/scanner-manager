@@ -11,6 +11,65 @@ import {
 } from "@/lib/import-export/csv";
 import { buildProductIndex, searchProducts } from "@/lib/search/productIndex";
 import { ConfirmModal } from "@/components/confirm-modal";
+import type { Product } from "@/domain/types";
+
+function EditableProductCard({
+  product,
+  onSaveNotes,
+}: {
+  product: Product;
+  onSaveNotes: (id: string, notes: string) => void;
+}) {
+  const [draftNotes, setDraftNotes] = useState(product.specs.notes || "");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const dirty = draftNotes !== (product.specs.notes || "");
+
+  return (
+    <div className="rounded border bg-white p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-medium">{product.model}</div>
+          <div className="text-sm text-slate-600">{product.name}</div>
+        </div>
+        <span className="rounded bg-slate-100 px-2 py-1 text-xs">{product.status || "-"}</span>
+      </div>
+      <div className="mt-2 text-xs text-slate-600">
+        扫码类型: {product.specs.scan?.codeTypes?.join("/") || "-"} · 接口: {product.specs.comms?.wired?.join("/") || "-"} · 无线: {product.specs.comms?.wireless?.join("/") || "-"}
+      </div>
+      <textarea
+        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        value={draftNotes}
+        onChange={(e) => setDraftNotes(e.target.value)}
+        placeholder="规格备注"
+      />
+      <div className="mt-2 flex gap-2">
+        <button
+          className="flex-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white"
+          disabled={!dirty}
+          onClick={() => onSaveNotes(product.id, draftNotes)}
+        >
+          保存
+        </button>
+        <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" disabled={!dirty} onClick={() => setConfirmDiscard(true)}>
+          取消
+        </button>
+      </div>
+      <ConfirmModal
+        open={confirmDiscard}
+        title="确认撤销本次变更"
+        description="你有未保存的产品修改，确认取消并撤销吗？"
+        confirmText="确认撤销"
+        cancelText="继续编辑"
+        onConfirm={() => {
+          setDraftNotes(product.specs.notes || "");
+          setConfirmDiscard(false);
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+    </div>
+  );
+}
 
 export function ProductsPage() {
   const products = useAppStore((s) => s.products);
@@ -144,25 +203,16 @@ export function ProductsPage() {
       />
 
       <div className="grid gap-3 md:grid-cols-2">
-        {list.map((p) => (
-          <div key={p.id} className="rounded border bg-white p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">{p.model}</div>
-                <div className="text-sm text-slate-600">{p.name}</div>
-              </div>
-              <span className="rounded bg-slate-100 px-2 py-1 text-xs">{p.status || "-"}</span>
-            </div>
-            <div className="mt-2 text-xs text-slate-600">
-              扫码类型: {p.specs.scan?.codeTypes?.join("/") || "-"} · 接口: {p.specs.comms?.wired?.join("/") || "-"} · 无线: {p.specs.comms?.wireless?.join("/") || "-"}
-            </div>
-            <textarea
-              className="mt-2 w-full rounded border px-2 py-1 text-sm"
-              value={p.specs.notes || ""}
-              onChange={(e) => updateProduct(p.id, { specs: { ...p.specs, notes: e.target.value } })}
-              placeholder="规格备注"
-            />
-          </div>
+        {list.map((product) => (
+          <EditableProductCard
+            key={product.id}
+            product={product}
+            onSaveNotes={(id, notes) => {
+              const target = products.find((item) => item.id === id);
+              if (!target) return;
+              updateProduct(id, { specs: { ...target.specs, notes } });
+            }}
+          />
         ))}
       </div>
     </section>
