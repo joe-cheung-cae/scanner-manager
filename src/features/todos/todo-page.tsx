@@ -11,6 +11,7 @@ import type { Customer, OrderType, Todo } from "@/domain/types";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { CustomerCombobox } from "@/features/todos/components/customer-combobox";
 import { findLikelyCustomers } from "@/lib/customer-match";
+import { getComparisonHighlights } from "@/lib/customer-compare";
 
 function SortableItem({
   todo,
@@ -459,22 +460,47 @@ export function TodoPage() {
             <h3 className="text-lg font-semibold">发现可能重复客户</h3>
             <p className="mt-1 text-sm text-slate-600">输入名称与已有客户近似，请先选择已有客户，或确认仍然新建。</p>
             <div className="mt-3 space-y-2 rounded border bg-slate-50 p-2">
-              {duplicateCandidates.map((candidate) => (
-                <button
-                  key={candidate.id}
-                  className="w-full rounded border bg-white px-3 py-2 text-left text-sm hover:bg-sky-50"
-                  onClick={() => {
-                    createTodoForCustomer(candidate.id, pendingCreatePayload);
-                    setSelectedCustomerId(candidate.id);
-                    setCustomerInput(candidate.name);
-                    setPendingCreatePayload(null);
-                    setDuplicateCandidates([]);
-                    setConfirmDuplicateCustomer(false);
-                  }}
-                >
-                  选择已有客户：{candidate.name}
-                </button>
-              ))}
+              {duplicateCandidates.map((candidate) => {
+                const compared = getComparisonHighlights(pendingCreatePayload.customerName, candidate.name);
+                return (
+                  <button
+                    key={candidate.id}
+                    className="w-full rounded border bg-white px-3 py-2 text-left text-sm hover:bg-sky-50"
+                    onClick={() => {
+                      createTodoForCustomer(candidate.id, pendingCreatePayload);
+                      setSelectedCustomerId(candidate.id);
+                      setCustomerInput(candidate.name);
+                      setPendingCreatePayload(null);
+                      setDuplicateCandidates([]);
+                      setConfirmDuplicateCustomer(false);
+                    }}
+                  >
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                        <p className="text-xs text-amber-700">你输入的客户</p>
+                        <p className="font-medium text-slate-900">
+                          {compared.inputSegments.map((segment, idx) => (
+                            <span key={`input-${candidate.id}-${idx}`} className={segment.match ? "rounded bg-amber-200 px-0.5" : ""}>
+                              {segment.text}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                      <div className="rounded border border-sky-200 bg-sky-50 px-2 py-1">
+                        <p className="text-xs text-sky-700">已有客户</p>
+                        <p className="font-medium text-slate-900">
+                          {compared.candidateSegments.map((segment, idx) => (
+                            <span key={`candidate-${candidate.id}-${idx}`} className={segment.match ? "rounded bg-amber-200 px-0.5" : ""}>
+                              {segment.text}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">点击将本次待办关联到该已有客户</p>
+                  </button>
+                );
+              })}
             </div>
             <div className="mt-3 flex gap-2">
               <button
