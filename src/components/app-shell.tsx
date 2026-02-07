@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const fallback = useAppStore((s) => s.storageFallback);
   const storageError = useAppStore((s) => s.storageError);
-  const [online, setOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
     hydrate();
@@ -30,11 +30,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const syncOnlineState = () => setOnline(navigator.onLine);
+    const timer = window.setTimeout(syncOnlineState, 0);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
@@ -55,7 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
           <div className="ml-auto text-sm">
-            <span className={online ? "text-emerald-600" : "text-amber-600"}>{online ? "在线" : "离线"}</span>
+            {online === null && <span className="text-slate-500">网络状态检测中</span>}
+            {online === true && <span className="text-emerald-600">在线</span>}
+            {online === false && <span className="text-amber-600">离线</span>}
           </div>
         </div>
       </header>
