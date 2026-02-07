@@ -7,8 +7,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { useAppStore } from "@/store/appStore";
 import { parseQuickAdd } from "@/domain/parser";
 import { todayYmd } from "@/lib/date";
-import type { OrderType, Todo } from "@/domain/types";
+import type { Customer, OrderType, Todo } from "@/domain/types";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { CustomerCombobox } from "@/features/todos/components/customer-combobox";
+import { findLikelyCustomers } from "@/lib/customer-match";
 
 function SortableItem({
   todo,
@@ -88,6 +90,7 @@ export function TodoPage() {
   const completeTodoWithConversion = useAppStore((s) => s.completeTodoWithConversion);
 
   const [customerInput, setCustomerInput] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [quickInput, setQuickInput] = useState("");
   const [summary, setSummary] = useState("");
   const [orderDraftText, setOrderDraftText] = useState("");
@@ -101,6 +104,17 @@ export function TodoPage() {
   const [initialEditTitle, setInitialEditTitle] = useState("");
   const [initialEditSummary, setInitialEditSummary] = useState("");
   const [confirmDiscardTodoDetail, setConfirmDiscardTodoDetail] = useState(false);
+  const [duplicateCandidates, setDuplicateCandidates] = useState<Customer[]>([]);
+  const [confirmDuplicateCustomer, setConfirmDuplicateCustomer] = useState(false);
+  const [pendingCreatePayload, setPendingCreatePayload] = useState<{
+    title: string;
+    priority?: Todo["priority"];
+    reminderTime?: string;
+    tags?: string[];
+    summary?: string;
+    orderDraftText?: string;
+    customerName: string;
+  } | null>(null);
   const quickInputRef = useRef<HTMLInputElement>(null);
 
   const dayTodos = useMemo(() => {
@@ -111,31 +125,31 @@ export function TodoPage() {
     return filteredByStatus.filter((todo) => [todo.title, todo.summary, todo.tags?.join(" ")].join(" ").toLowerCase().includes(q));
   }, [todos, selectedDate, filter, search]);
 
-  function createTodo() {
-    if (!quickInput.trim()) return;
-    const parsed = parseQuickAdd(quickInput);
-    if (!parsed.title.trim()) return;
-
-    let customerId = customers.find((c) => c.name === customerInput.trim())?.id;
-    if (!customerId) {
-      if (!customerInput.trim()) return;
-      customerId = addCustomer({ name: customerInput.trim() });
-    }
-
+  function createTodoForCustomer(
+    customerId: string,
+    payload: {
+      title: string;
+      priority?: Todo["priority"];
+      reminderTime?: string;
+      tags?: string[];
+      summary?: string;
+      orderDraftText?: string;
+    },
+  ) {
     addTodo({
       date: selectedDate,
-      title: parsed.title,
+      title: payload.title,
       customerId,
-      summary: summary || undefined,
-      priority: parsed.priority,
-      reminderTime: parsed.reminderTime,
-      tags: parsed.tags,
+      summary: payload.summary || undefined,
+      priority: payload.priority,
+      reminderTime: payload.reminderTime,
+      tags: payload.tags,
       orderDraft: {
-        items: orderDraftText
+        items: payload.orderDraftText
           ? [
               {
                 kind: "newCustom",
-                customSpecText: orderDraftText,
+                customSpecText: payload.orderDraftText,
                 quantity: 1,
               },
             ]
@@ -146,6 +160,47 @@ export function TodoPage() {
     setQuickInput("");
     setSummary("");
     setOrderDraftText("");
+  }
+
+  function createTodo() {
+    if (!quickInput.trim()) return;
+    const parsed = parseQuickAdd(quickInput);
+    if (!parsed.title.trim()) return;
+
+    const customerName = customerInput.trim();
+    if (!customerName) return;
+
+    const payload = {
+      title: parsed.title,
+      priority: parsed.priority,
+      reminderTime: parsed.reminderTime,
+      tags: parsed.tags,
+      summary,
+      orderDraftText,
+      customerName,
+    };
+
+    if (selectedCustomerId && customers.some((item) => item.id === selectedCustomerId)) {
+      createTodoForCustomer(selectedCustomerId, payload);
+      return;
+    }
+
+    const exactCustomer = customers.find((item) => item.name === customerName);
+    if (exactCustomer) {
+      createTodoForCustomer(exactCustomer.id, payload);
+      return;
+    }
+
+    const likely = findLikelyCustomers(customers, customerName, { limit: 3 });
+    if (likely.length > 0) {
+      setPendingCreatePayload(payload);
+      setDuplicateCandidates(likely);
+      setConfirmDuplicateCustomer(true);
+      return;
+    }
+
+    const customerId = addCustomer({ name: customerName });
+    createTodoForCustomer(customerId, payload);
   }
 
   useEffect(() => {
@@ -227,7 +282,22 @@ export function TodoPage() {
       </div>
 
       <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-2">
-        <input aria-label="客户名称" className="rounded border px-2 py-2" placeholder="客户名称（必填）" value={customerInput} onChange={(e) => setCustomerInput(e.target.value)} />
+        <CustomerCombobox
+          customers={customers}
+          value={customerInput}
+          selectedCustomerId={selectedCustomerId}
+          onInputChange={(value) => {
+            setCustomerInput(value);
+            if (selectedCustomerId) {
+              const selected = customers.find((item) => item.id === selectedCustomerId);
+              if (!selected || selected.name !== value) setSelectedCustomerId(null);
+            }
+          }}
+          onSelectCustomer={(customer) => {
+            setSelectedCustomerId(customer.id);
+            setCustomerInput(customer.name);
+          }}
+        />
         <input aria-label="快捷录入" ref={quickInputRef} className="rounded border px-2 py-2" placeholder="快捷录入：!!! 客户A 14:30 #回访" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
         <input aria-label="沟通纪要" className="rounded border px-2 py-2" placeholder="沟通纪要（选填）" value={summary} onChange={(e) => setSummary(e.target.value)} />
         <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
@@ -315,6 +385,58 @@ export function TodoPage() {
               <button className="flex-1 rounded bg-amber-600 px-3 py-2 text-white" onClick={() => convert("opportunity")}>线索/机会</button>
             </div>
             <button className="mt-3 w-full rounded bg-slate-200 px-3 py-2" onClick={() => setConversionTodoId(null)}>取消</button>
+          </div>
+        </div>
+      )}
+      {confirmDuplicateCustomer && pendingCreatePayload && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded bg-white p-4">
+            <h3 className="text-lg font-semibold">发现可能重复客户</h3>
+            <p className="mt-1 text-sm text-slate-600">输入名称与已有客户近似，请先选择已有客户，或确认仍然新建。</p>
+            <div className="mt-3 space-y-2 rounded border bg-slate-50 p-2">
+              {duplicateCandidates.map((candidate) => (
+                <button
+                  key={candidate.id}
+                  className="w-full rounded border bg-white px-3 py-2 text-left text-sm hover:bg-sky-50"
+                  onClick={() => {
+                    createTodoForCustomer(candidate.id, pendingCreatePayload);
+                    setSelectedCustomerId(candidate.id);
+                    setCustomerInput(candidate.name);
+                    setPendingCreatePayload(null);
+                    setDuplicateCandidates([]);
+                    setConfirmDuplicateCustomer(false);
+                  }}
+                >
+                  选择已有客户：{candidate.name}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                className="flex-1 rounded bg-amber-600 px-3 py-2 text-white"
+                onClick={() => {
+                  const customerId = addCustomer({ name: pendingCreatePayload.customerName });
+                  createTodoForCustomer(customerId, pendingCreatePayload);
+                  setSelectedCustomerId(customerId);
+                  setCustomerInput(pendingCreatePayload.customerName);
+                  setPendingCreatePayload(null);
+                  setDuplicateCandidates([]);
+                  setConfirmDuplicateCustomer(false);
+                }}
+              >
+                仍然新建客户
+              </button>
+              <button
+                className="flex-1 rounded bg-slate-200 px-3 py-2"
+                onClick={() => {
+                  setPendingCreatePayload(null);
+                  setDuplicateCandidates([]);
+                  setConfirmDuplicateCustomer(false);
+                }}
+              >
+                返回继续编辑
+              </button>
+            </div>
           </div>
         </div>
       )}
