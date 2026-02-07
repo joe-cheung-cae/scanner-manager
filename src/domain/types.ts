@@ -149,11 +149,23 @@ export interface Product {
   sourceOrderId?: string;
 }
 
+export type RecycleEntityType = "order" | "customer" | "product";
+
+export interface RecycleBinItem {
+  id: Id;
+  entityType: RecycleEntityType;
+  entityId: Id;
+  snapshot: Order | Customer | Product;
+  deletedAt: number;
+  reason?: string;
+}
+
 export interface PersistedState {
   customers: Customer[];
   todos: Todo[];
   orders: Order[];
   products: Product[];
+  recycleBin: RecycleBinItem[];
   meta: {
     schemaVersion: number;
     lastSavedAt: number;

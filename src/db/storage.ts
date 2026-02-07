@@ -8,6 +8,7 @@ const emptyState: PersistedState = {
   todos: [],
   orders: [],
   products: [],
+  recycleBin: [],
   meta: {
     schemaVersion: DB_VERSION,
     lastSavedAt: Date.now(),
@@ -39,12 +40,13 @@ function writeFallback(state: PersistedState): void {
 export async function loadState(): Promise<{ state: PersistedState; fallback: boolean }> {
   try {
     const db = await openScannerDb();
-    const tx = db.transaction(["customers", "todos", "orders", "products", "meta"], "readonly");
-    const [customers, todos, orders, products, meta] = await Promise.all([
+    const tx = db.transaction(["customers", "todos", "orders", "products", "recycleBin", "meta"], "readonly");
+    const [customers, todos, orders, products, recycleBin, meta] = await Promise.all([
       tx.objectStore("customers").getAll(),
       tx.objectStore("todos").getAll(),
       tx.objectStore("orders").getAll(),
       tx.objectStore("products").getAll(),
+      tx.objectStore("recycleBin").getAll(),
       tx.objectStore("meta").get("app"),
       tx.done,
     ]);
@@ -55,6 +57,7 @@ export async function loadState(): Promise<{ state: PersistedState; fallback: bo
         todos,
         orders,
         products,
+        recycleBin,
         meta: {
           schemaVersion: DB_VERSION,
           lastSavedAt: meta?.lastSavedAt ?? Date.now(),
@@ -70,12 +73,13 @@ export async function loadState(): Promise<{ state: PersistedState; fallback: bo
 export async function saveState(nextState: PersistedState): Promise<{ fallback: boolean }> {
   try {
     const db = await openScannerDb();
-    const tx = db.transaction(["customers", "todos", "orders", "products", "meta"], "readwrite");
+    const tx = db.transaction(["customers", "todos", "orders", "products", "recycleBin", "meta"], "readwrite");
     await Promise.all([
       tx.objectStore("customers").clear(),
       tx.objectStore("todos").clear(),
       tx.objectStore("orders").clear(),
       tx.objectStore("products").clear(),
+      tx.objectStore("recycleBin").clear(),
     ]);
 
     await Promise.all([
@@ -83,6 +87,7 @@ export async function saveState(nextState: PersistedState): Promise<{ fallback: 
       ...nextState.todos.map((x) => tx.objectStore("todos").put(x)),
       ...nextState.orders.map((x) => tx.objectStore("orders").put(x)),
       ...nextState.products.map((x) => tx.objectStore("products").put(x)),
+      ...nextState.recycleBin.map((x) => tx.objectStore("recycleBin").put(x)),
       tx.objectStore("meta").put(nextState.meta, "app"),
     ]);
     await tx.done;

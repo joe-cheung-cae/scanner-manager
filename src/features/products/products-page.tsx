@@ -16,9 +16,11 @@ import type { Product } from "@/domain/types";
 function EditableProductCard({
   product,
   onSaveNotes,
+  onDelete,
 }: {
   product: Product;
   onSaveNotes: (id: string, notes: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const [draftNotes, setDraftNotes] = useState(product.specs.notes || "");
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -54,6 +56,9 @@ function EditableProductCard({
         <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" disabled={!dirty} onClick={() => setConfirmDiscard(true)}>
           取消
         </button>
+        <button className="rounded bg-rose-600 px-2 py-1 text-sm text-white" onClick={() => onDelete(product.id)}>
+          删除
+        </button>
       </div>
       <ConfirmModal
         open={confirmDiscard}
@@ -79,6 +84,7 @@ export function ProductsPage() {
   const addProduct = useAppStore((s) => s.addProduct);
   const updateProduct = useAppStore((s) => s.updateProduct);
   const replaceProducts = useAppStore((s) => s.replaceProducts);
+  const deleteProduct = useAppStore((s) => s.deleteProductToRecycleBin);
 
   const [model, setModel] = useState("");
   const [name, setName] = useState("");
@@ -90,6 +96,8 @@ export function ProductsPage() {
   const [importError, setImportError] = useState("");
   const [pendingImportProducts, setPendingImportProducts] = useState<typeof products | null>(null);
   const [pendingImportSource, setPendingImportSource] = useState<"CSV" | "JSON" | null>(null);
+  const [pendingDeleteProductId, setPendingDeleteProductId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   const index = useMemo(() => buildProductIndex(products), [products]);
   const list = useMemo(
@@ -105,6 +113,7 @@ export function ProductsPage() {
 
   return (
     <section className="space-y-4">
+      {message && <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-xl font-semibold">产品库</h2>
         <DownloadButton filename="products.csv" content={exportProductsToCsv(products)} label="导出产品 CSV" />
@@ -212,9 +221,24 @@ export function ProductsPage() {
               if (!target) return;
               updateProduct(id, { specs: { ...target.specs, notes } });
             }}
+            onDelete={setPendingDeleteProductId}
           />
         ))}
       </div>
+      <ConfirmModal
+        open={!!pendingDeleteProductId}
+        title="确认删除产品"
+        description="产品将移入回收站。若存在关联订单，将无法删除。"
+        confirmText="确认删除"
+        cancelText="取消"
+        onConfirm={() => {
+          if (!pendingDeleteProductId) return;
+          const result = deleteProduct(pendingDeleteProductId);
+          setMessage(result.ok ? "产品已移入回收站。" : result.message || "删除失败。");
+          setPendingDeleteProductId(null);
+        }}
+        onCancel={() => setPendingDeleteProductId(null)}
+      />
     </section>
   );
 }

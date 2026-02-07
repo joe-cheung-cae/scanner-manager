@@ -5,6 +5,7 @@ import { ORDER_STATUS } from "@/domain/types";
 import { useAppStore } from "@/store/appStore";
 import { exportOrdersToCsv, exportOrdersToJson } from "@/lib/import-export/csv";
 import { DownloadButton } from "@/components/download-button";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 export function OrdersPage() {
   const orders = useAppStore((s) => s.orders);
@@ -12,10 +13,13 @@ export function OrdersPage() {
   const transition = useAppStore((s) => s.transitionOrderStatus);
   const appendTimeline = useAppStore((s) => s.appendOrderTimeline);
   const archiveCustom = useAppStore((s) => s.archiveCustomItemToProduct);
+  const deleteOrder = useAppStore((s) => s.deleteOrderToRecycleBin);
 
   const [query, setQuery] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(orders[0]?.id || null);
   const [timelineText, setTimelineText] = useState("");
+  const [pendingDeleteOrderId, setPendingDeleteOrderId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [customerFilter, setCustomerFilter] = useState("");
@@ -87,6 +91,7 @@ export function OrdersPage() {
       </div>
 
       <div className="space-y-3 rounded border bg-white p-3">
+        {message && <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800">{message}</div>}
         {!selected && <div className="text-sm text-slate-500">请选择订单</div>}
         {selected && (
           <>
@@ -102,6 +107,9 @@ export function OrdersPage() {
                   <option key={x} value={x}>{x}</option>
                 ))}
               </select>
+              <button className="rounded bg-rose-600 px-2 py-1 text-xs text-white" onClick={() => setPendingDeleteOrderId(selected.id)}>
+                删除订单
+              </button>
             </div>
 
             <div>
@@ -150,6 +158,21 @@ export function OrdersPage() {
           </>
         )}
       </div>
+      <ConfirmModal
+        open={!!pendingDeleteOrderId}
+        title="确认删除订单"
+        description="订单将移入回收站，可在回收站恢复。"
+        confirmText="确认删除"
+        cancelText="取消"
+        onConfirm={() => {
+          if (!pendingDeleteOrderId) return;
+          const result = deleteOrder(pendingDeleteOrderId);
+          setMessage(result.ok ? "订单已移入回收站。" : result.message || "删除失败。");
+          setPendingDeleteOrderId(null);
+          setSelectedOrderId(null);
+        }}
+        onCancel={() => setPendingDeleteOrderId(null)}
+      />
     </section>
   );
 }

@@ -9,6 +9,7 @@ import type {
   OrderType,
   Product,
   ProductSearchFilters,
+  RecycleBinItem,
   Todo,
 } from "@/domain/types";
 import { ORDER_STATUS } from "@/domain/types";
@@ -23,6 +24,7 @@ interface AppState {
   todos: Todo[];
   orders: Order[];
   products: Product[];
+  recycleBin: RecycleBinItem[];
   selectedDate: string;
   loading: boolean;
   storageFallback: boolean;
@@ -56,12 +58,17 @@ interface AppState {
     itemIndex: number,
     payload?: Partial<Pick<Product, "model" | "name" | "status" | "customSummary" | "version">>,
   ) => string;
+  deleteOrderToRecycleBin: (orderId: string) => { ok: boolean; message?: string };
+  deleteCustomerToRecycleBin: (customerId: string) => { ok: boolean; message?: string };
+  deleteProductToRecycleBin: (productId: string) => { ok: boolean; message?: string };
+  restoreFromRecycleBin: (recycleId: string) => { ok: boolean; message?: string };
+  purgeRecycleBin: (recycleId: string) => { ok: boolean; message?: string };
   searchProductsByQuery: (query: string, filters?: ProductSearchFilters) => Product[];
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | undefined;
 
-function debouncePersist(state: Pick<AppState, "customers" | "todos" | "orders" | "products">) {
+function debouncePersist(state: Pick<AppState, "customers" | "todos" | "orders" | "products" | "recycleBin">) {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(async () => {
     const result = await saveState({
@@ -122,7 +129,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set((state) => {
       const next = [...state.customers, customer];
-      debouncePersist({ customers: next, todos: state.todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: next, todos: state.todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { customers: next };
     });
     return customer.id;
@@ -130,7 +137,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateCustomer(id, patch) {
     set((state) => {
       const customers = state.customers.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: Date.now() } : x));
-      debouncePersist({ customers, todos: state.todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers, todos: state.todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { customers };
     });
   },
@@ -155,7 +162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set((state) => {
       const todos = [...state.todos, todo];
-      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { todos };
     });
     return todo.id;
@@ -163,21 +170,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateTodo(id, patch) {
     set((state) => {
       const todos = state.todos.map((todo) => (todo.id === id ? { ...todo, ...patch, updatedAt: Date.now() } : todo));
-      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { todos };
     });
   },
   deleteTodo(id) {
     set((state) => {
       const todos = state.todos.filter((todo) => todo.id !== id);
-      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { todos };
     });
   },
   setTodoCompleted(id, completed) {
     set((state) => {
       const todos = state.todos.map((todo) => (todo.id === id ? { ...todo, completed, updatedAt: Date.now() } : todo));
-      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { todos };
     });
   },
@@ -188,7 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (todo.date !== date || !idSet.has(todo.id)) return todo;
         return { ...todo, order: ids.indexOf(todo.id), updatedAt: Date.now() };
       });
-      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products, recycleBin: state.recycleBin });
       return { todos };
     });
   },
@@ -219,7 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const orders = [...state.orders, nextOrder];
     set({ todos, orders });
-    debouncePersist({ customers: state.customers, todos, orders, products: state.products });
+    debouncePersist({ customers: state.customers, todos, orders, products: state.products, recycleBin: state.recycleBin });
   },
   transitionOrderStatus(orderId, status, detail) {
     set((state) => {
@@ -233,7 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           timeline: [...o.timeline, { at: now, action: `状态更新为：${status}`, detail }],
         };
       });
-      debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products, recycleBin: state.recycleBin });
       return { orders };
     });
   },
@@ -248,7 +255,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           timeline: [...o.timeline, { at: now, action: "添加跟单记录", detail }],
         };
       });
-      debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products, recycleBin: state.recycleBin });
       return { orders };
     });
   },
@@ -271,7 +278,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set((state) => {
       const products = [...state.products, product];
-      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products, recycleBin: state.recycleBin });
       return { products };
     });
     return product.id;
@@ -279,13 +286,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateProduct(id, patch) {
     set((state) => {
       const products = state.products.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p));
-      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products, recycleBin: state.recycleBin });
       return { products };
     });
   },
   replaceProducts(products) {
     set((state) => {
-      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products, recycleBin: state.recycleBin });
       return { products };
     });
   },
@@ -332,8 +339,105 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const products = [...state.products, product];
     set({ orders, products });
-    debouncePersist({ customers: state.customers, todos: state.todos, orders, products });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders, products, recycleBin: state.recycleBin });
     return productId;
+  },
+  deleteOrderToRecycleBin(orderId) {
+    const state = get();
+    const target = state.orders.find((x) => x.id === orderId);
+    if (!target) return { ok: false, message: "未找到订单。" };
+    const recycleItem: RecycleBinItem = {
+      id: createId(),
+      entityType: "order",
+      entityId: target.id,
+      snapshot: target,
+      deletedAt: Date.now(),
+    };
+    const orders = state.orders.filter((x) => x.id !== orderId);
+    const recycleBin = [...state.recycleBin, recycleItem];
+    set({ orders, recycleBin });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products, recycleBin });
+    return { ok: true };
+  },
+  deleteCustomerToRecycleBin(customerId) {
+    const state = get();
+    const target = state.customers.find((x) => x.id === customerId);
+    if (!target) return { ok: false, message: "未找到客户。" };
+    const relatedOrders = state.orders.filter((x) => x.customerId === customerId).length;
+    if (relatedOrders > 0) return { ok: false, message: `该客户存在 ${relatedOrders} 条关联订单，无法删除。` };
+    const recycleItem: RecycleBinItem = {
+      id: createId(),
+      entityType: "customer",
+      entityId: target.id,
+      snapshot: target,
+      deletedAt: Date.now(),
+    };
+    const customers = state.customers.filter((x) => x.id !== customerId);
+    const recycleBin = [...state.recycleBin, recycleItem];
+    set({ customers, recycleBin });
+    debouncePersist({ customers, todos: state.todos, orders: state.orders, products: state.products, recycleBin });
+    return { ok: true };
+  },
+  deleteProductToRecycleBin(productId) {
+    const state = get();
+    const target = state.products.find((x) => x.id === productId);
+    if (!target) return { ok: false, message: "未找到产品。" };
+    const relatedOrders = state.orders.filter((order) => order.items.some((item) => item.productId === productId)).length;
+    if (relatedOrders > 0) return { ok: false, message: `该产品存在 ${relatedOrders} 条关联订单，无法删除。` };
+    const recycleItem: RecycleBinItem = {
+      id: createId(),
+      entityType: "product",
+      entityId: target.id,
+      snapshot: target,
+      deletedAt: Date.now(),
+    };
+    const products = state.products.filter((x) => x.id !== productId);
+    const recycleBin = [...state.recycleBin, recycleItem];
+    set({ products, recycleBin });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products, recycleBin });
+    return { ok: true };
+  },
+  restoreFromRecycleBin(recycleId) {
+    const state = get();
+    const recycle = state.recycleBin.find((x) => x.id === recycleId);
+    if (!recycle) return { ok: false, message: "未找到回收站条目。" };
+    const recycleBin = state.recycleBin.filter((x) => x.id !== recycleId);
+
+    if (recycle.entityType === "order") {
+      const order = recycle.snapshot as Order;
+      if (!state.customers.some((x) => x.id === order.customerId)) return { ok: false, message: "恢复失败：关联客户不存在。" };
+      const missingProduct = order.items.find((item) => item.productId && !state.products.some((p) => p.id === item.productId));
+      if (missingProduct) return { ok: false, message: "恢复失败：关联产品不存在。" };
+      if (state.orders.some((x) => x.id === order.id)) return { ok: false, message: "恢复失败：订单ID冲突。" };
+      const orders = [...state.orders, order];
+      set({ orders, recycleBin });
+      debouncePersist({ customers: state.customers, todos: state.todos, orders, products: state.products, recycleBin });
+      return { ok: true };
+    }
+
+    if (recycle.entityType === "customer") {
+      const customer = recycle.snapshot as Customer;
+      if (state.customers.some((x) => x.id === customer.id)) return { ok: false, message: "恢复失败：客户ID冲突。" };
+      const customers = [...state.customers, customer];
+      set({ customers, recycleBin });
+      debouncePersist({ customers, todos: state.todos, orders: state.orders, products: state.products, recycleBin });
+      return { ok: true };
+    }
+
+    const product = recycle.snapshot as Product;
+    if (state.products.some((x) => x.id === product.id)) return { ok: false, message: "恢复失败：产品ID冲突。" };
+    const products = [...state.products, product];
+    set({ products, recycleBin });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products, recycleBin });
+    return { ok: true };
+  },
+  purgeRecycleBin(recycleId) {
+    const state = get();
+    if (!state.recycleBin.some((x) => x.id === recycleId)) return { ok: false, message: "未找到回收站条目。" };
+    const recycleBin = state.recycleBin.filter((x) => x.id !== recycleId);
+    set({ recycleBin });
+    debouncePersist({ customers: state.customers, todos: state.todos, orders: state.orders, products: state.products, recycleBin });
+    return { ok: true };
   },
   searchProductsByQuery(query, filters = {}) {
     const indexed = buildProductIndex(get().products);

@@ -10,11 +10,13 @@ function EditableCustomerCard({
   orderCount,
   todoTitles,
   onSave,
+  onDelete,
 }: {
   customer: Customer;
   orderCount: number;
   todoTitles: string[];
   onSave: (id: string, patch: Partial<Customer>) => void;
+  onDelete: (id: string) => void;
 }) {
   const [draftPhone, setDraftPhone] = useState(customer.phone || "");
   const [draftNotes, setDraftNotes] = useState(customer.notes || "");
@@ -58,6 +60,9 @@ function EditableCustomerCard({
         <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" onClick={requestCancel} disabled={!dirty}>
           取消
         </button>
+        <button className="rounded bg-rose-600 px-2 py-1 text-sm text-white" onClick={() => onDelete(customer.id)}>
+          删除
+        </button>
       </div>
       <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-600">
         最近待办：
@@ -86,9 +91,12 @@ export function CustomersPage() {
   const todos = useAppStore((s) => s.todos);
   const addCustomer = useAppStore((s) => s.addCustomer);
   const updateCustomer = useAppStore((s) => s.updateCustomer);
+  const deleteCustomer = useAppStore((s) => s.deleteCustomerToRecycleBin);
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [pendingDeleteCustomerId, setPendingDeleteCustomerId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -99,6 +107,7 @@ export function CustomersPage() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold">客户库</h2>
+      {message && <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
       <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-3">
         <input className="rounded border px-2 py-2" placeholder="客户名称" value={name} onChange={(e) => setName(e.target.value)} />
         <input className="rounded border px-2 py-2" placeholder="电话（可选）" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -123,9 +132,24 @@ export function CustomersPage() {
             orderCount={orders.filter((o) => o.customerId === customer.id).length}
             todoTitles={todos.filter((t) => t.customerId === customer.id).map((t) => t.title)}
             onSave={updateCustomer}
+            onDelete={setPendingDeleteCustomerId}
           />
         ))}
       </div>
+      <ConfirmModal
+        open={!!pendingDeleteCustomerId}
+        title="确认删除客户"
+        description="客户将移入回收站。若存在关联订单，将无法删除。"
+        confirmText="确认删除"
+        cancelText="取消"
+        onConfirm={() => {
+          if (!pendingDeleteCustomerId) return;
+          const result = deleteCustomer(pendingDeleteCustomerId);
+          setMessage(result.ok ? "客户已移入回收站。" : result.message || "删除失败。");
+          setPendingDeleteCustomerId(null);
+        }}
+        onCancel={() => setPendingDeleteCustomerId(null)}
+      />
     </section>
   );
 }

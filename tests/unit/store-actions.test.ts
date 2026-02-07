@@ -7,6 +7,7 @@ beforeEach(() => {
     todos: [],
     orders: [],
     products: [],
+    recycleBin: [],
     selectedDate: "2026-02-07",
     loading: false,
     storageFallback: false,
@@ -83,5 +84,77 @@ describe("store actions", () => {
     expect(state.products.length).toBe(1);
     expect(state.orders[0].items[0].kind).toBe("archivedCustom");
     expect(state.orders[0].items[0].productId).toBe(productId);
+  });
+
+  it("订单删除应进入回收站并可恢复", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户R1" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "待删除订单",
+      customerId,
+      orderDraft: { items: [{ kind: "newCustom", customSpecText: "测试规格", quantity: 1 }] },
+    });
+    useAppStore.getState().completeTodoWithConversion(todoId, "order");
+    const orderId = useAppStore.getState().orders[0].id;
+
+    const del = useAppStore.getState().deleteOrderToRecycleBin(orderId);
+    expect(del.ok).toBe(true);
+    expect(useAppStore.getState().orders).toHaveLength(0);
+    expect(useAppStore.getState().recycleBin).toHaveLength(1);
+
+    const recycleId = useAppStore.getState().recycleBin[0].id;
+    const restore = useAppStore.getState().restoreFromRecycleBin(recycleId);
+    expect(restore.ok).toBe(true);
+    expect(useAppStore.getState().orders).toHaveLength(1);
+  });
+
+  it("有关联订单时客户删除应被阻止", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户R2" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "订单关联客户",
+      customerId,
+      orderDraft: { items: [{ kind: "newCustom", customSpecText: "规格", quantity: 1 }] },
+    });
+    useAppStore.getState().completeTodoWithConversion(todoId, "order");
+
+    const result = useAppStore.getState().deleteCustomerToRecycleBin(customerId);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("关联订单");
+  });
+
+  it("有关联订单时产品删除应被阻止", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户R3" });
+    const productId = useAppStore.getState().addProduct({ model: "SM-R3", name: "测试产品" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "产品关联订单",
+      customerId,
+      orderDraft: { items: [{ kind: "catalog", productId, quantity: 1 }] },
+    });
+    useAppStore.getState().completeTodoWithConversion(todoId, "order");
+
+    const result = useAppStore.getState().deleteProductToRecycleBin(productId);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("关联订单");
+  });
+
+  it("恢复订单时若客户缺失应失败", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户R4" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "恢复校验订单",
+      customerId,
+      orderDraft: { items: [{ kind: "newCustom", customSpecText: "规格", quantity: 1 }] },
+    });
+    useAppStore.getState().completeTodoWithConversion(todoId, "order");
+    const orderId = useAppStore.getState().orders[0].id;
+    const deleted = useAppStore.getState().deleteOrderToRecycleBin(orderId);
+    expect(deleted.ok).toBe(true);
+
+    const customerDelete = useAppStore.getState().deleteCustomerToRecycleBin(customerId);
+    expect(customerDelete.ok).toBe(true);
+
+    const recycleOrder = useAppStore.getState().recycleBin.find((x) => x.entityType === "order");
+    expect(recycleOrder).toBeTruthy();
+    const restore = useAppStore.getState().restoreFromRecycleBin(recycleOrder!.id);
+    expect(restore.ok).toBe(false);
+    expect(restore.message).toContain("关联客户不存在");
   });
 });

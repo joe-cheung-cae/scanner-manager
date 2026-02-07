@@ -10,6 +10,7 @@ const NAVS = [
   { href: "/orders", label: "订单库" },
   { href: "/customers", label: "客户库" },
   { href: "/products", label: "产品库" },
+  { href: "/recycle-bin", label: "回收站" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

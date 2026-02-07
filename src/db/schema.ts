@@ -1,8 +1,8 @@
 import { DBSchema, IDBPDatabase, openDB } from "idb";
-import type { Customer, Order, PersistedState, Product, Todo } from "@/domain/types";
+import type { Customer, Order, PersistedState, Product, RecycleBinItem, Todo } from "@/domain/types";
 
 export const DB_NAME = "scanner-manager-db";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export interface ScannerDB extends DBSchema {
   customers: {
@@ -21,6 +21,10 @@ export interface ScannerDB extends DBSchema {
     key: string;
     value: Product;
   };
+  recycleBin: {
+    key: string;
+    value: RecycleBinItem;
+  };
   meta: {
     key: string;
     value: PersistedState["meta"];
@@ -34,6 +38,9 @@ export function upgrade(db: IDBPDatabase<ScannerDB>, oldVersion: number): void {
     if (!db.objectStoreNames.contains("orders")) db.createObjectStore("orders", { keyPath: "id" });
     if (!db.objectStoreNames.contains("products")) db.createObjectStore("products", { keyPath: "id" });
     if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta");
+  }
+  if (oldVersion < 2) {
+    if (!db.objectStoreNames.contains("recycleBin")) db.createObjectStore("recycleBin", { keyPath: "id" });
   }
 }
 
