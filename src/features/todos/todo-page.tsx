@@ -98,6 +98,8 @@ export function TodoPage() {
   const [advancedMode, setAdvancedMode] = useState(false);
   const [quickInput, setQuickInput] = useState("");
   const [orderDraftText, setOrderDraftText] = useState("");
+  const [createFormError, setCreateFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ customer?: string; title?: string; quickInput?: string }>({});
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "done">("pending");
   const [conversionTodoId, setConversionTodoId] = useState<string | null>(null);
@@ -166,15 +168,30 @@ export function TodoPage() {
     setTagsInput("");
     setQuickInput("");
     setOrderDraftText("");
+    setCreateFormError("");
+    setFieldErrors({});
   }
 
   function createTodo() {
     const parsed = advancedMode ? parseQuickAdd(quickInput) : undefined;
     const title = advancedMode ? parsed?.title || "" : titleInput.trim();
-    if (!title.trim()) return;
-
     const customerName = customerInput.trim();
-    if (!customerName) return;
+    const nextErrors: { customer?: string; title?: string; quickInput?: string } = {};
+    if (!customerName) nextErrors.customer = "请填写客户名称。";
+    if (!title.trim()) {
+      if (advancedMode) {
+        nextErrors.quickInput = "请在高级模式中填写包含标题的快捷录入。";
+      } else {
+        nextErrors.title = "请填写待办标题。";
+      }
+    }
+    if (nextErrors.customer || nextErrors.title || nextErrors.quickInput) {
+      setFieldErrors(nextErrors);
+      setCreateFormError("请先完善必填项后再新建待办。");
+      return;
+    }
+    setFieldErrors({});
+    setCreateFormError("");
 
     const payload = {
       title,
@@ -290,8 +307,14 @@ export function TodoPage() {
           customers={customers}
           value={customerInput}
           selectedCustomerId={selectedCustomerId}
+          invalid={!!fieldErrors.customer}
+          errorMessage={fieldErrors.customer}
           onInputChange={(value) => {
             setCustomerInput(value);
+            if (fieldErrors.customer) {
+              setFieldErrors((prev) => ({ ...prev, customer: undefined }));
+            }
+            if (createFormError) setCreateFormError("");
             if (selectedCustomerId) {
               const selected = customers.find((item) => item.id === selectedCustomerId);
               if (!selected || selected.name !== value) setSelectedCustomerId(null);
@@ -300,9 +323,23 @@ export function TodoPage() {
           onSelectCustomer={(customer) => {
             setSelectedCustomerId(customer.id);
             setCustomerInput(customer.name);
+            setFieldErrors((prev) => ({ ...prev, customer: undefined }));
+            if (createFormError) setCreateFormError("");
           }}
         />
-        <input aria-label="待办标题" className="rounded border px-2 py-2" placeholder="待办标题（必填）" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
+        <input
+          aria-label="待办标题"
+          aria-invalid={fieldErrors.title ? "true" : "false"}
+          className={`rounded border px-2 py-2 ${fieldErrors.title ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
+          placeholder="待办标题（必填）"
+          value={titleInput}
+          onChange={(e) => {
+            setTitleInput(e.target.value);
+            if (fieldErrors.title) setFieldErrors((prev) => ({ ...prev, title: undefined }));
+            if (createFormError) setCreateFormError("");
+          }}
+        />
+        {fieldErrors.title && <p className="-mt-1 text-xs text-rose-600 md:col-span-2">{fieldErrors.title}</p>}
         <select aria-label="优先级" className="rounded border px-2 py-2" value={priorityInput} onChange={(e) => setPriorityInput(e.target.value as Todo["priority"])}>
           <option value="low">低</option>
           <option value="med">中</option>
@@ -323,16 +360,25 @@ export function TodoPage() {
           {advancedMode ? "收起高级模式" : "展开高级模式"}
         </button>
         {advancedMode && (
-          <input
-            aria-label="快捷录入高级模式"
-            ref={quickInputRef}
-            className="rounded border px-2 py-2 md:col-span-2"
-            placeholder="高级模式：!!! 跟进报价 @14:30 #回访 r:30m"
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-          />
+          <>
+            <input
+              aria-label="快捷录入高级模式"
+              aria-invalid={fieldErrors.quickInput ? "true" : "false"}
+              ref={quickInputRef}
+              className={`rounded border px-2 py-2 md:col-span-2 ${fieldErrors.quickInput ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
+              placeholder="高级模式：!!! 跟进报价 @14:30 #回访 r:30m"
+              value={quickInput}
+              onChange={(e) => {
+                setQuickInput(e.target.value);
+                if (fieldErrors.quickInput) setFieldErrors((prev) => ({ ...prev, quickInput: undefined }));
+                if (createFormError) setCreateFormError("");
+              }}
+            />
+            {fieldErrors.quickInput && <p className="-mt-1 text-xs text-rose-600 md:col-span-2">{fieldErrors.quickInput}</p>}
+          </>
         )}
         <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
+        {createFormError && <div className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 md:col-span-2">{createFormError}</div>}
         <button className="rounded bg-sky-600 px-3 py-2 text-white md:col-span-2" onClick={createTodo}>
           新建待办（Ctrl/Cmd+Enter）
         </button>

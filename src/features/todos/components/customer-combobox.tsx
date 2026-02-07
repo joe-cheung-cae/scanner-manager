@@ -9,12 +9,16 @@ export function CustomerCombobox({
   selectedCustomerId,
   onInputChange,
   onSelectCustomer,
+  invalid,
+  errorMessage,
 }: {
   customers: Customer[];
   value: string;
   selectedCustomerId: string | null;
   onInputChange: (value: string) => void;
   onSelectCustomer: (customer: Customer) => void;
+  invalid?: boolean;
+  errorMessage?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -47,10 +51,11 @@ export function CustomerCombobox({
     <div className="relative">
       <input
         aria-label="客户名称"
+        aria-invalid={invalid ? "true" : "false"}
         role="combobox"
         aria-expanded={open && candidates.length > 0}
         aria-controls="todo-customer-candidate-list"
-        className="w-full rounded border px-2 py-2"
+        className={`w-full rounded border px-2 py-2 ${invalid ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
         placeholder="客户名称（必填）"
         value={value}
         onFocus={() => setOpen(true)}
@@ -82,6 +87,7 @@ export function CustomerCombobox({
           }
         }}
       />
+      {errorMessage && <p className="mt-1 text-xs text-rose-600">{errorMessage}</p>}
       {selectedName && <div className="mt-1 text-xs text-emerald-700">已选客户：{selectedName}</div>}
       {open && candidates.length > 0 && (
         <div className="absolute z-20 mt-1 w-full rounded border bg-white shadow-md">
