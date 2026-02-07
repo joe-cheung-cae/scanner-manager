@@ -24,8 +24,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
+    if (!("serviceWorker" in navigator)) return;
+
+    if (process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      return;
+    }
+
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((item) => item.unregister())))
+      .catch(() => undefined);
+
+    if ("caches" in window) {
+      caches
+        .keys()
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+        .catch(() => undefined);
     }
   }, []);
 
