@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ORDER_STATUS } from "@/domain/types";
 import { useAppStore } from "@/store/appStore";
-import { exportOrdersToCsv } from "@/lib/import-export/csv";
+import { exportOrdersToCsv, exportOrdersToJson } from "@/lib/import-export/csv";
 import { DownloadButton } from "@/components/download-button";
 
 export function OrdersPage() {
@@ -16,18 +16,24 @@ export function OrdersPage() {
   const [query, setQuery] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(orders[0]?.id || null);
   const [timelineText, setTimelineText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return orders;
     return orders.filter((o) => {
       const customer = customers.find((c) => c.id === o.customerId);
       const hay = [o.orderNo, o.status, o.type, customer?.name, o.items.map((x) => x.snapshot?.model || x.customSpecText).join(" ")]
         .join(" ")
         .toLowerCase();
-      return hay.includes(q);
+      const passQuery = !q || hay.includes(q);
+      const passStatus = !statusFilter || o.status === statusFilter;
+      const passType = !typeFilter || o.type === typeFilter;
+      const passCustomer = !customerFilter || o.customerId === customerFilter;
+      return passQuery && passStatus && passType && passCustomer;
     });
-  }, [orders, customers, query]);
+  }, [orders, customers, query, statusFilter, typeFilter, customerFilter]);
 
   const selected = filtered.find((o) => o.id === selectedOrderId) || filtered[0] || null;
 
@@ -36,9 +42,31 @@ export function OrdersPage() {
       <div className="space-y-3 rounded border bg-white p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">订单库</h2>
-          <DownloadButton filename="orders.csv" content={exportOrdersToCsv(orders)} label="导出 CSV" />
+          <div className="flex gap-2">
+            <DownloadButton filename="orders.csv" content={exportOrdersToCsv(orders)} label="导出 CSV" />
+            <DownloadButton filename="orders.json" content={exportOrdersToJson(orders)} label="导出 JSON" />
+          </div>
         </div>
         <input className="w-full rounded border px-2 py-2" placeholder="搜索订单号/客户/型号关键词" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <div className="grid gap-2 md:grid-cols-3">
+          <select className="rounded border px-2 py-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">全部状态</option>
+            {ORDER_STATUS.map((x) => (
+              <option key={x} value={x}>{x}</option>
+            ))}
+          </select>
+          <select className="rounded border px-2 py-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="">全部类型</option>
+            <option value="order">正式订单</option>
+            <option value="opportunity">线索机会</option>
+          </select>
+          <select className="rounded border px-2 py-2" value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}>
+            <option value="">全部客户</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
         <div className="max-h-[65vh] space-y-2 overflow-auto">
           {filtered.map((o) => {
             const customer = customers.find((c) => c.id === o.customerId);

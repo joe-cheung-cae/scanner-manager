@@ -5,9 +5,10 @@
 ## 功能概览
 
 - 今日/日历待办：快捷录入、拖拽排序、完成后强制转换订单/线索
-- 订单库：状态流转、时间线跟单、定制条目归档为产品
+- 今日/日历待办：支持搜索、编辑、删除、取消完成、快捷键（`Ctrl/Cmd+Enter` 新建，`/` 聚焦输入）
+- 订单库：状态/类型/客户筛选、状态流转、时间线跟单、定制条目归档为产品、CSV/JSON 导出
 - 客户库：客户资料维护与关联订单统计
-- 产品库：型号/规格搜索、过滤、CSV 导入导出、全量 JSON 备份
+- 产品库：型号/规格搜索、过滤、CSV/JSON 导入导出、全量 JSON 备份
 - 离线能力：IndexedDB 存储，异常时自动降级 localStorage
 - PWA：可安装、离线可访问主要页面
 
@@ -37,6 +38,11 @@ pnpm lint
 pnpm test
 pnpm test:e2e
 ```
+
+## CI
+
+- GitHub Actions: `.github/workflows/ci.yml`
+- 包含：`pnpm lint`、`pnpm test`、`pnpm build`、`pnpm test:e2e`
 
 ## Docker 部署
 

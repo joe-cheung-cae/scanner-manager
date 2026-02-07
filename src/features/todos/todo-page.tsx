@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,7 +9,19 @@ import { parseQuickAdd } from "@/domain/parser";
 import { todayYmd } from "@/lib/date";
 import type { OrderType, Todo } from "@/domain/types";
 
-function SortableItem({ todo, onComplete }: { todo: Todo; onComplete: (id: string) => void }) {
+function SortableItem({
+  todo,
+  onComplete,
+  onUncomplete,
+  onDelete,
+  onEdit,
+}: {
+  todo: Todo;
+  onComplete: (id: string) => void;
+  onUncomplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (todo: Todo) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: todo.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -37,11 +49,24 @@ function SortableItem({ todo, onComplete }: { todo: Todo; onComplete: (id: strin
             </div>
           )}
         </div>
-        {!todo.completed && (
-          <button className="rounded bg-emerald-600 px-3 py-1 text-sm text-white" onClick={() => onComplete(todo.id)}>
-            完成
+        <div className="flex flex-col gap-1">
+          {!todo.completed && (
+            <button className="rounded bg-emerald-600 px-3 py-1 text-sm text-white" onClick={() => onComplete(todo.id)}>
+              完成
+            </button>
+          )}
+          {todo.completed && (
+            <button className="rounded bg-slate-600 px-3 py-1 text-sm text-white" onClick={() => onUncomplete(todo.id)}>
+              取消完成
+            </button>
+          )}
+          <button className="rounded bg-sky-600 px-3 py-1 text-sm text-white" onClick={() => onEdit(todo)}>
+            编辑
           </button>
-        )}
+          <button className="rounded bg-rose-600 px-3 py-1 text-sm text-white" onClick={() => onDelete(todo.id)}>
+            删除
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -56,22 +81,32 @@ export function TodoPage() {
   const addTodo = useAppStore((s) => s.addTodo);
   const addCustomer = useAppStore((s) => s.addCustomer);
   const reorderTodos = useAppStore((s) => s.reorderTodos);
+  const updateTodo = useAppStore((s) => s.updateTodo);
+  const deleteTodo = useAppStore((s) => s.deleteTodo);
+  const setTodoCompleted = useAppStore((s) => s.setTodoCompleted);
   const completeTodoWithConversion = useAppStore((s) => s.completeTodoWithConversion);
 
   const [customerInput, setCustomerInput] = useState("");
   const [quickInput, setQuickInput] = useState("");
   const [summary, setSummary] = useState("");
   const [orderDraftText, setOrderDraftText] = useState("");
+  const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "done">("pending");
   const [conversionTodoId, setConversionTodoId] = useState<string | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSummary, setEditSummary] = useState("");
+  const quickInputRef = useRef<HTMLInputElement>(null);
 
   const dayTodos = useMemo(() => {
     const list = todos.filter((x) => x.date === selectedDate).sort((a, b) => a.order - b.order);
-    if (filter === "all") return list;
-    return list.filter((x) => (filter === "pending" ? !x.completed : x.completed));
-  }, [todos, selectedDate, filter]);
+    const filteredByStatus = filter === "all" ? list : list.filter((x) => (filter === "pending" ? !x.completed : x.completed));
+    const q = search.trim().toLowerCase();
+    if (!q) return filteredByStatus;
+    return filteredByStatus.filter((todo) => [todo.title, todo.summary, todo.tags?.join(" ")].join(" ").toLowerCase().includes(q));
+  }, [todos, selectedDate, filter, search]);
 
-  const createTodo = () => {
+  function createTodo() {
     if (!quickInput.trim()) return;
     const parsed = parseQuickAdd(quickInput);
     if (!parsed.title.trim()) return;
@@ -106,7 +141,24 @@ export function TodoPage() {
     setQuickInput("");
     setSummary("");
     setOrderDraftText("");
-  };
+  }
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        createTodo();
+      }
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const target = event.target as HTMLElement | null;
+        if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+        event.preventDefault();
+        quickInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -125,6 +177,18 @@ export function TodoPage() {
     setConversionTodoId(null);
   };
 
+  const closeTodoDetail = () => {
+    setEditingTodoId(null);
+    setEditTitle("");
+    setEditSummary("");
+  };
+
+  const saveTodoDetail = () => {
+    if (!editingTodoId || !editTitle.trim()) return;
+    updateTodo(editingTodoId, { title: editTitle.trim(), summary: editSummary || undefined });
+    closeTodoDetail();
+  };
+
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold">今日/日历待办</h2>
@@ -132,7 +196,7 @@ export function TodoPage() {
         <button className="rounded bg-slate-200 px-3 py-1" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() - 86400000)))}>
           前一天
         </button>
-        <input type="date" value={selectedDate} onChange={(e) => setDate(e.target.value)} className="rounded border px-2 py-1" />
+        <input aria-label="待办日期" type="date" value={selectedDate} onChange={(e) => setDate(e.target.value)} className="rounded border px-2 py-1" />
         <button className="rounded bg-slate-200 px-3 py-1" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() + 86400000)))}>
           后一天
         </button>
@@ -141,23 +205,80 @@ export function TodoPage() {
           <option value="done">仅已完成</option>
           <option value="all">全部</option>
         </select>
+        <input aria-label="搜索待办" className="rounded border px-2 py-1" placeholder="搜索待办" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-2">
-        <input className="rounded border px-2 py-2" placeholder="客户名称（必填）" value={customerInput} onChange={(e) => setCustomerInput(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="快捷录入：!!! 客户A 14:30 #回访" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="沟通纪要（选填）" value={summary} onChange={(e) => setSummary(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
+        <input aria-label="客户名称" className="rounded border px-2 py-2" placeholder="客户名称（必填）" value={customerInput} onChange={(e) => setCustomerInput(e.target.value)} />
+        <input aria-label="快捷录入" ref={quickInputRef} className="rounded border px-2 py-2" placeholder="快捷录入：!!! 客户A 14:30 #回访" value={quickInput} onChange={(e) => setQuickInput(e.target.value)} />
+        <input aria-label="沟通纪要" className="rounded border px-2 py-2" placeholder="沟通纪要（选填）" value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
         <button className="rounded bg-sky-600 px-3 py-2 text-white md:col-span-2" onClick={createTodo}>
-          新建待办
+          新建待办（Ctrl/Cmd+Enter）
         </button>
       </div>
+
+      {editingTodoId && (
+        <div className="fixed inset-0 z-20 bg-black/40" onClick={closeTodoDetail}>
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="todo-detail-title"
+            className="absolute right-0 top-0 h-full w-full max-w-md bg-white p-4 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 id="todo-detail-title" className="text-lg font-semibold">待办详情</h3>
+              <button className="rounded bg-slate-200 px-2 py-1 text-sm" onClick={closeTodoDetail}>关闭</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm text-slate-600" htmlFor="todo-detail-title-input">详情标题</label>
+                <input
+                  id="todo-detail-title-input"
+                  aria-label="详情标题"
+                  className="w-full rounded border px-2 py-2"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="请输入待办标题"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-600" htmlFor="todo-detail-summary-input">详情纪要</label>
+                <textarea
+                  id="todo-detail-summary-input"
+                  aria-label="详情纪要"
+                  className="min-h-32 w-full rounded border px-2 py-2"
+                  value={editSummary}
+                  onChange={(e) => setEditSummary(e.target.value)}
+                  placeholder="请输入沟通纪要"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button className="flex-1 rounded bg-emerald-600 px-3 py-2 text-white" onClick={saveTodoDetail}>保存详情</button>
+                <button className="flex-1 rounded bg-slate-200 px-3 py-2" onClick={closeTodoDetail}>取消</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <SortableContext items={dayTodos.map((x) => x.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {dayTodos.map((todo) => (
-              <SortableItem key={todo.id} todo={todo} onComplete={setConversionTodoId} />
+              <SortableItem
+                key={todo.id}
+                todo={todo}
+                onComplete={setConversionTodoId}
+                onUncomplete={(id) => setTodoCompleted(id, false)}
+                onDelete={deleteTodo}
+                onEdit={(selected) => {
+                  setEditingTodoId(selected.id);
+                  setEditTitle(selected.title);
+                  setEditSummary(selected.summary || "");
+                }}
+              />
             ))}
             {!dayTodos.length && <div className="rounded border border-dashed p-6 text-center text-slate-500">当天暂无待办</div>}
           </div>

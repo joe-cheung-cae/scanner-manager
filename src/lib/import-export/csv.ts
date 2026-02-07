@@ -132,6 +132,49 @@ export function exportOrdersToCsv(orders: Order[]): string {
   return [header.join(","), ...lines.map((r) => r.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))].join("\n");
 }
 
+export function exportOrdersToJson(orders: Order[]): string {
+  return JSON.stringify(orders, null, 2);
+}
+
+export function importProductsFromJson(
+  fileText: string,
+  existingProducts: Product[] = [],
+): { products: Product[]; errors: string[] } {
+  try {
+    const parsed = JSON.parse(fileText) as Array<Partial<Product>>;
+    if (!Array.isArray(parsed)) {
+      return { products: existingProducts, errors: ["JSON 格式不正确，必须是数组。"] };
+    }
+    const now = Date.now();
+    const errors: string[] = [];
+    const products = [...existingProducts];
+    parsed.forEach((item, index) => {
+      if (!item.model || !item.name) {
+        errors.push(`第 ${index + 1} 条缺少必填字段（model/name）`);
+        return;
+      }
+      products.push({
+        id: item.id || createId(),
+        productType: item.productType || "catalog",
+        model: item.model,
+        name: item.name,
+        status: item.status || "在售",
+        specs: item.specs || {},
+        createdAt: item.createdAt || now,
+        updatedAt: now,
+        baseModelRefId: item.baseModelRefId,
+        customSummary: item.customSummary,
+        version: item.version,
+        sourceCustomerId: item.sourceCustomerId,
+        sourceOrderId: item.sourceOrderId,
+      });
+    });
+    return { products, errors };
+  } catch {
+    return { products: existingProducts, errors: ["JSON 解析失败，请检查文件内容。"] };
+  }
+}
+
 export function exportFullBackup(data: {
   customers: unknown[];
   todos: unknown[];

@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/appStore";
 export function CustomersPage() {
   const customers = useAppStore((s) => s.customers);
   const orders = useAppStore((s) => s.orders);
+  const todos = useAppStore((s) => s.todos);
   const addCustomer = useAppStore((s) => s.addCustomer);
   const updateCustomer = useAppStore((s) => s.updateCustomer);
   const [query, setQuery] = useState("");
@@ -42,7 +43,9 @@ export function CustomersPage() {
           <div key={c.id} className="rounded border bg-white p-3">
             <div className="flex items-center justify-between">
               <div className="font-medium">{c.name}</div>
-              <span className="text-xs text-slate-500">关联订单 {orders.filter((o) => o.customerId === c.id).length}</span>
+              <span className="text-xs text-slate-500">
+                关联订单 {orders.filter((o) => o.customerId === c.id).length} · 关联待办 {todos.filter((t) => t.customerId === c.id).length}
+              </span>
             </div>
             <input
               className="mt-2 w-full rounded border px-2 py-1 text-sm"
@@ -56,6 +59,10 @@ export function CustomersPage() {
               onChange={(e) => updateCustomer(c.id, { notes: e.target.value })}
               placeholder="备注"
             />
+            <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-600">
+              最近待办：
+              {todos.filter((t) => t.customerId === c.id).slice(-3).map((t) => t.title).join(" / ") || "无"}
+            </div>
           </div>
         ))}
       </div>

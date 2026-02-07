@@ -6,8 +6,10 @@ import { DownloadButton } from "@/components/download-button";
 import {
   exportFullBackup,
   exportProductsToCsv,
+  importProductsFromJson,
   importProductsFromCsv,
 } from "@/lib/import-export/csv";
+import { buildProductIndex, searchProducts } from "@/lib/search/productIndex";
 
 export function ProductsPage() {
   const products = useAppStore((s) => s.products);
@@ -17,7 +19,6 @@ export function ProductsPage() {
   const addProduct = useAppStore((s) => s.addProduct);
   const updateProduct = useAppStore((s) => s.updateProduct);
   const replaceProducts = useAppStore((s) => s.replaceProducts);
-  const searchProductsByQuery = useAppStore((s) => s.searchProductsByQuery);
 
   const [model, setModel] = useState("");
   const [name, setName] = useState("");
@@ -28,15 +29,16 @@ export function ProductsPage() {
   const [wireless, setWireless] = useState("");
   const [importError, setImportError] = useState("");
 
+  const index = useMemo(() => buildProductIndex(products), [products]);
   const list = useMemo(
     () =>
-      searchProductsByQuery(query, {
+      searchProducts(index, query, {
         status: status || undefined,
         codeType: codeType || undefined,
         wired: wired || undefined,
         wireless: wireless || undefined,
       }),
-    [query, status, codeType, wired, wireless, searchProductsByQuery],
+    [index, query, status, codeType, wired, wireless],
   );
 
   return (
@@ -81,23 +83,41 @@ export function ProductsPage() {
       </div>
 
       <div className="rounded border bg-white p-3">
-        <label className="mb-2 block text-sm font-medium">导入产品 CSV</label>
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const content = await file.text();
-            const result = importProductsFromCsv(content, "upsertByModel", products);
-            if (result.errors.length) {
-              setImportError(result.errors.join("；"));
-              return;
-            }
-            setImportError("");
-            replaceProducts(result.products);
-          }}
-        />
+        <label className="mb-2 block text-sm font-medium">导入产品（CSV / JSON）</label>
+        <div className="grid gap-2 md:grid-cols-2">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const content = await file.text();
+              const result = importProductsFromCsv(content, "upsertByModel", products);
+              if (result.errors.length) {
+                setImportError(result.errors.join("；"));
+                return;
+              }
+              setImportError("");
+              replaceProducts(result.products);
+            }}
+          />
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const content = await file.text();
+              const result = importProductsFromJson(content, products);
+              if (result.errors.length) {
+                setImportError(result.errors.join("；"));
+                return;
+              }
+              setImportError("");
+              replaceProducts(result.products);
+            }}
+          />
+        </div>
         {importError && <p className="mt-2 text-sm text-red-600">{importError}</p>}
       </div>
 

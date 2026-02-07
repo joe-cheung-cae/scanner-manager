@@ -15,6 +15,22 @@ beforeEach(() => {
 });
 
 describe("store actions", () => {
+  it("应支持待办编辑、删除与取消完成", () => {
+    const customerId = useAppStore.getState().addCustomer({ name: "客户D" });
+    const todoId = useAppStore.getState().addTodo({
+      title: "初次沟通",
+      customerId,
+    });
+
+    useAppStore.getState().updateTodo(todoId, { title: "二次沟通", summary: "更新纪要" });
+    useAppStore.getState().setTodoCompleted(todoId, true);
+    useAppStore.getState().setTodoCompleted(todoId, false);
+    useAppStore.getState().deleteTodo(todoId);
+
+    const state = useAppStore.getState();
+    expect(state.todos.find((x) => x.id === todoId)).toBeUndefined();
+  });
+
   it("完成待办必须生成订单并回写转换信息", () => {
     const customerId = useAppStore.getState().addCustomer({ name: "客户A" });
     const todoId = useAppStore.getState().addTodo({

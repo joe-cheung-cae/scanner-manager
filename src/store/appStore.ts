@@ -41,6 +41,9 @@ interface AppState {
     tags?: string[];
     orderDraft?: { items: DraftItem[]; stage?: string; intentType?: "standard" | "custom" | "mixed" };
   }) => string;
+  updateTodo: (id: string, patch: Partial<Pick<Todo, "title" | "summary" | "priority" | "reminderTime" | "tags">>) => void;
+  deleteTodo: (id: string) => void;
+  setTodoCompleted: (id: string, completed: boolean) => void;
   reorderTodos: (date: string, ids: string[]) => void;
   completeTodoWithConversion: (todoId: string, type: OrderType) => void;
   transitionOrderStatus: (orderId: string, status: OrderStatus, detail?: string) => void;
@@ -156,6 +159,27 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { todos };
     });
     return todo.id;
+  },
+  updateTodo(id, patch) {
+    set((state) => {
+      const todos = state.todos.map((todo) => (todo.id === id ? { ...todo, ...patch, updatedAt: Date.now() } : todo));
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      return { todos };
+    });
+  },
+  deleteTodo(id) {
+    set((state) => {
+      const todos = state.todos.filter((todo) => todo.id !== id);
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      return { todos };
+    });
+  },
+  setTodoCompleted(id, completed) {
+    set((state) => {
+      const todos = state.todos.map((todo) => (todo.id === id ? { ...todo, completed, updatedAt: Date.now() } : todo));
+      debouncePersist({ customers: state.customers, todos, orders: state.orders, products: state.products });
+      return { todos };
+    });
   },
   reorderTodos(date, ids) {
     set((state) => {
