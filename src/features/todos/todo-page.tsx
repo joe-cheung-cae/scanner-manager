@@ -110,10 +110,12 @@ export function TodoPage() {
   const customers = useAppStore((s) => s.customers);
   const todos = useAppStore((s) => s.todos);
   const orders = useAppStore((s) => s.orders);
+  const products = useAppStore((s) => s.products);
   const selectedDate = useAppStore((s) => s.selectedDate);
   const setDate = useAppStore((s) => s.setDate);
   const addTodo = useAppStore((s) => s.addTodo);
   const addCustomer = useAppStore((s) => s.addCustomer);
+  const addProduct = useAppStore((s) => s.addProduct);
   const reorderTodos = useAppStore((s) => s.reorderTodos);
   const updateTodo = useAppStore((s) => s.updateTodo);
   const deleteTodo = useAppStore((s) => s.deleteTodo);
@@ -129,7 +131,12 @@ export function TodoPage() {
   const [tagsInput, setTagsInput] = useState("");
   const [advancedMode, setAdvancedMode] = useState(false);
   const [quickInput, setQuickInput] = useState("");
-  const [orderDraftText, setOrderDraftText] = useState("");
+  const [selectedDraftProductId, setSelectedDraftProductId] = useState("");
+  const [draftQuantity, setDraftQuantity] = useState(1);
+  const [creatingProduct, setCreatingProduct] = useState(false);
+  const [newProductModel, setNewProductModel] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductError, setNewProductError] = useState("");
   const [createFormError, setCreateFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ customer?: string; title?: string; quickInput?: string }>({});
   const [search, setSearch] = useState("");
@@ -148,7 +155,8 @@ export function TodoPage() {
     reminderTime?: string;
     remindBeforeMinutes?: number;
     tags?: string[];
-    orderDraftText?: string;
+    draftProductId?: string;
+    draftQuantity?: number;
     customerName: string;
   } | null>(null);
   const quickInputRef = useRef<HTMLInputElement>(null);
@@ -187,10 +195,25 @@ export function TodoPage() {
       reminderTime?: string;
       remindBeforeMinutes?: number;
       tags?: string[];
-      orderDraftText?: string;
+      draftProductId?: string;
+      draftQuantity?: number;
     },
   ) {
-    const defaultCustomSpec = payload.orderDraftText?.trim() || payload.title;
+    const draftItems = payload.draftProductId
+      ? [
+          {
+            kind: "catalog" as const,
+            productId: payload.draftProductId,
+            quantity: Math.max(1, payload.draftQuantity || 1),
+          },
+        ]
+      : [
+          {
+            kind: "newCustom" as const,
+            customSpecText: payload.title,
+            quantity: 1,
+          },
+        ];
 
     addTodo({
       date: selectedDate,
@@ -201,13 +224,7 @@ export function TodoPage() {
       remindBeforeMinutes: payload.remindBeforeMinutes,
       tags: payload.tags,
       orderDraft: {
-        items: [
-          {
-            kind: "newCustom",
-            customSpecText: defaultCustomSpec,
-            quantity: 1,
-          },
-        ],
+        items: draftItems,
       },
     });
 
@@ -217,7 +234,12 @@ export function TodoPage() {
     setRemindBeforeInput(30);
     setTagsInput("");
     setQuickInput("");
-    setOrderDraftText("");
+    setSelectedDraftProductId("");
+    setDraftQuantity(1);
+    setCreatingProduct(false);
+    setNewProductModel("");
+    setNewProductName("");
+    setNewProductError("");
     setCreateFormError("");
     setFieldErrors({});
   }
@@ -249,7 +271,8 @@ export function TodoPage() {
       reminderTime: advancedMode ? parsed?.reminderTime : reminderTimeInput || undefined,
       remindBeforeMinutes: advancedMode ? parsed?.remindBeforeMinutes : remindBeforeInput,
       tags: advancedMode ? parsed?.tags : tagsInput.split(",").map((x) => x.trim()).filter(Boolean),
-      orderDraftText,
+      draftProductId: selectedDraftProductId || undefined,
+      draftQuantity,
       customerName,
     };
 
@@ -447,12 +470,84 @@ export function TodoPage() {
                 }}
                 error={fieldErrors.title}
               />
-              <Input
-                aria-label="订单草稿"
-                placeholder="订单草稿（选填，默认定制条目）"
-                value={orderDraftText}
-                onChange={(e) => setOrderDraftText(e.target.value)}
-              />
+              <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-500">订单草稿</p>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <Select
+                    aria-label="订单产品型号"
+                    value={selectedDraftProductId}
+                    onChange={(e) => setSelectedDraftProductId(e.target.value)}
+                  >
+                    <option value="">未选择产品（默认按待办标题生成定制条目）</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.model} · {product.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    aria-label="订单数量"
+                    type="number"
+                    min={1}
+                    value={String(draftQuantity)}
+                    onChange={(e) => setDraftQuantity(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setCreatingProduct((prev) => !prev);
+                    setNewProductError("");
+                  }}
+                  aria-label="新建产品入口"
+                >
+                  {creatingProduct ? "收起新建产品" : "新建产品"}
+                </Button>
+                {creatingProduct ? (
+                  <div className="grid gap-2 rounded-xl border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                    <Input
+                      aria-label="新产品型号"
+                      placeholder="新产品型号（必填）"
+                      value={newProductModel}
+                      onChange={(e) => {
+                        setNewProductModel(e.target.value);
+                        if (newProductError) setNewProductError("");
+                      }}
+                    />
+                    <Input
+                      aria-label="新产品名称"
+                      placeholder="新产品名称（必填）"
+                      value={newProductName}
+                      onChange={(e) => {
+                        setNewProductName(e.target.value);
+                        if (newProductError) setNewProductError("");
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        const model = newProductModel.trim();
+                        const name = newProductName.trim();
+                        if (!model || !name) {
+                          setNewProductError("请先填写新产品型号与名称。");
+                          return;
+                        }
+                        const id = addProduct({ model, name, productType: "catalog", status: "在售" });
+                        setSelectedDraftProductId(id);
+                        setCreatingProduct(false);
+                        setNewProductModel("");
+                        setNewProductName("");
+                        setNewProductError("");
+                      }}
+                      aria-label="创建并选择产品"
+                    >
+                      创建并选择
+                    </Button>
+                    {newProductError ? <p className="text-xs text-rose-600 sm:col-span-3">{newProductError}</p> : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="space-y-2">
