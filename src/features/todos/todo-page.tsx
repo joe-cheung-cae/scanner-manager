@@ -33,9 +33,9 @@ function SortableItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded border bg-white p-3 shadow-sm">
+    <div ref={setNodeRef} style={style} className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
       <div className="flex items-start gap-2">
-        <button className="cursor-move rounded bg-slate-100 px-2 py-1 text-xs" {...attributes} {...listeners}>
+        <button className="cursor-move rounded-lg bg-slate-100 px-2 py-1 text-xs text-slate-700" {...attributes} {...listeners}>
           拖拽
         </button>
         <div className="flex-1">
@@ -54,19 +54,19 @@ function SortableItem({
         </div>
         <div className="flex flex-col gap-1">
           {!todo.completed && (
-            <button className="rounded bg-emerald-600 px-3 py-1 text-sm text-white" onClick={() => onComplete(todo.id)}>
+            <button className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700" onClick={() => onComplete(todo.id)}>
               完成
             </button>
           )}
           {todo.completed && (
-            <button className="rounded bg-slate-600 px-3 py-1 text-sm text-white" onClick={() => onUncomplete(todo.id)}>
+            <button className="rounded-lg bg-slate-600 px-3 py-1 text-sm text-white hover:bg-slate-700" onClick={() => onUncomplete(todo.id)}>
               取消完成
             </button>
           )}
-          <button className="rounded bg-sky-600 px-3 py-1 text-sm text-white" onClick={() => onEdit(todo)}>
+          <button className="rounded-lg bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-700" onClick={() => onEdit(todo)}>
             编辑
           </button>
-          <button className="rounded bg-rose-600 px-3 py-1 text-sm text-white" onClick={() => onDelete(todo.id)}>
+          <button className="rounded-lg bg-rose-600 px-3 py-1 text-sm text-white hover:bg-rose-700" onClick={() => onDelete(todo.id)}>
             删除
           </button>
         </div>
@@ -79,6 +79,7 @@ export function TodoPage() {
   const sensors = useSensors(useSensor(PointerSensor));
   const customers = useAppStore((s) => s.customers);
   const todos = useAppStore((s) => s.todos);
+  const orders = useAppStore((s) => s.orders);
   const selectedDate = useAppStore((s) => s.selectedDate);
   const setDate = useAppStore((s) => s.setDate);
   const addTodo = useAppStore((s) => s.addTodo);
@@ -287,27 +288,35 @@ export function TodoPage() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold">今日/日历待办</h2>
-      <div className="flex flex-wrap gap-2">
-        <button className="rounded bg-slate-200 px-3 py-1" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() - 86400000)))}>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm">
+        <button className="rounded-lg bg-slate-200 px-3 py-1 hover:bg-slate-300" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() - 86400000)))}>
           前一天
         </button>
-        <input aria-label="待办日期" type="date" value={selectedDate} onChange={(e) => setDate(e.target.value)} className="rounded border px-2 py-1" />
-        <button className="rounded bg-slate-200 px-3 py-1" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() + 86400000)))}>
+        <input aria-label="待办日期" type="date" value={selectedDate} onChange={(e) => setDate(e.target.value)} className="rounded-lg px-2 py-1" />
+        <button className="rounded-lg bg-slate-200 px-3 py-1 hover:bg-slate-300" onClick={() => setDate(todayYmd(new Date(new Date(selectedDate).getTime() + 86400000)))}>
           后一天
         </button>
-        <select className="rounded border px-2 py-1" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
+        <select className="rounded-lg px-2 py-1" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
           <option value="pending">仅未完成</option>
           <option value="done">仅已完成</option>
           <option value="all">全部</option>
         </select>
-        <input aria-label="搜索待办" className="rounded border px-2 py-1" placeholder="搜索待办" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input aria-label="搜索待办" className="rounded-lg px-2 py-1" placeholder="搜索待办" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-2">
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-2">
         <CustomerCombobox
           customers={customers}
           value={customerInput}
           selectedCustomerId={selectedCustomerId}
+          orderCountByCustomerId={orders.reduce<Record<string, number>>((acc, order) => {
+            acc[order.customerId] = (acc[order.customerId] || 0) + 1;
+            return acc;
+          }, {})}
+          todoCountByCustomerId={todos.reduce<Record<string, number>>((acc, todo) => {
+            acc[todo.customerId] = (acc[todo.customerId] || 0) + 1;
+            return acc;
+          }, {})}
           invalid={!!fieldErrors.customer}
           errorMessage={fieldErrors.customer}
           onInputChange={(value) => {
@@ -331,7 +340,7 @@ export function TodoPage() {
         <input
           aria-label="待办标题"
           aria-invalid={fieldErrors.title ? "true" : "false"}
-          className={`rounded border px-2 py-2 ${fieldErrors.title ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
+          className={`rounded-lg px-2 py-2 ${fieldErrors.title ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
           placeholder="待办标题（必填）"
           value={titleInput}
           onChange={(e) => {
@@ -341,21 +350,21 @@ export function TodoPage() {
           }}
         />
         {fieldErrors.title && <p className="-mt-1 text-xs text-rose-600 md:col-span-2">{fieldErrors.title}</p>}
-        <select aria-label="优先级" className="rounded border px-2 py-2" value={priorityInput} onChange={(e) => setPriorityInput(e.target.value as Todo["priority"])}>
+        <select aria-label="优先级" className="rounded-lg px-2 py-2" value={priorityInput} onChange={(e) => setPriorityInput(e.target.value as Todo["priority"])}>
           <option value="low">低</option>
           <option value="med">中</option>
           <option value="high">高</option>
         </select>
-        <input aria-label="提醒时间" className="rounded border px-2 py-2" placeholder="HH:mm（选填）" value={reminderTimeInput} onChange={(e) => setReminderTimeInput(e.target.value)} />
-        <select aria-label="提前提醒" className="rounded border px-2 py-2" value={String(remindBeforeInput)} onChange={(e) => setRemindBeforeInput(Number(e.target.value))}>
+        <input aria-label="提醒时间" className="rounded-lg px-2 py-2" placeholder="HH:mm（选填）" value={reminderTimeInput} onChange={(e) => setReminderTimeInput(e.target.value)} />
+        <select aria-label="提前提醒" className="rounded-lg px-2 py-2" value={String(remindBeforeInput)} onChange={(e) => setRemindBeforeInput(Number(e.target.value))}>
           <option value="15">提前15分钟</option>
           <option value="30">提前30分钟</option>
           <option value="60">提前60分钟</option>
           <option value="120">提前120分钟</option>
         </select>
-        <input aria-label="标签" className="rounded border px-2 py-2 md:col-span-2" placeholder="标签（逗号分隔，如：回访,报价）" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} />
+        <input aria-label="标签" className="rounded-lg px-2 py-2 md:col-span-2" placeholder="标签（逗号分隔，如：回访,报价）" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} />
         <button
-          className="rounded bg-slate-200 px-3 py-2 text-sm md:col-span-2"
+          className="rounded-lg bg-slate-200 px-3 py-2 text-sm hover:bg-slate-300 md:col-span-2"
           onClick={() => setAdvancedMode((v) => !v)}
         >
           {advancedMode ? "收起高级模式" : "展开高级模式"}
@@ -366,7 +375,7 @@ export function TodoPage() {
               aria-label="快捷录入高级模式"
               aria-invalid={fieldErrors.quickInput ? "true" : "false"}
               ref={quickInputRef}
-              className={`rounded border px-2 py-2 md:col-span-2 ${fieldErrors.quickInput ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
+              className={`rounded-lg px-2 py-2 md:col-span-2 ${fieldErrors.quickInput ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
               placeholder="高级模式：!!! 跟进报价 @14:30 #回访 r:30m"
               value={quickInput}
               onChange={(e) => {
@@ -378,9 +387,9 @@ export function TodoPage() {
             {fieldErrors.quickInput && <p className="-mt-1 text-xs text-rose-600 md:col-span-2">{fieldErrors.quickInput}</p>}
           </>
         )}
-        <input aria-label="订单草稿" className="rounded border px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
+        <input aria-label="订单草稿" className="rounded-lg px-2 py-2" placeholder="订单草稿（选填，默认定制条目）" value={orderDraftText} onChange={(e) => setOrderDraftText(e.target.value)} />
         {createFormError && <div className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 md:col-span-2">{createFormError}</div>}
-        <button className="rounded bg-sky-600 px-3 py-2 text-white md:col-span-2" onClick={createTodo}>
+        <button className="rounded-lg bg-sky-600 px-3 py-2 text-white hover:bg-sky-700 md:col-span-2" onClick={createTodo}>
           新建待办（Ctrl/Cmd+Enter）
         </button>
       </div>
@@ -391,12 +400,12 @@ export function TodoPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="todo-detail-title"
-            className="absolute right-0 top-0 h-full w-full max-w-md bg-white p-4 shadow-xl"
+            className="absolute right-0 top-0 h-full w-full max-w-md bg-white p-4 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
               <h3 id="todo-detail-title" className="text-lg font-semibold">待办详情</h3>
-              <button className="rounded bg-slate-200 px-2 py-1 text-sm" onClick={requestCloseTodoDetail}>关闭</button>
+              <button className="rounded-lg bg-slate-200 px-2 py-1 text-sm hover:bg-slate-300" onClick={requestCloseTodoDetail}>关闭</button>
             </div>
             <div className="space-y-3">
               <div>
@@ -404,15 +413,15 @@ export function TodoPage() {
                 <input
                   id="todo-detail-title-input"
                   aria-label="详情标题"
-                  className="w-full rounded border px-2 py-2"
+                  className="w-full rounded-lg px-2 py-2"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="请输入待办标题"
                 />
               </div>
               <div className="flex gap-2">
-                <button className="flex-1 rounded bg-emerald-600 px-3 py-2 text-white" onClick={saveTodoDetail}>保存详情</button>
-                <button className="flex-1 rounded bg-slate-200 px-3 py-2" onClick={requestCloseTodoDetail}>取消</button>
+                <button className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700" onClick={saveTodoDetail}>保存详情</button>
+                <button className="flex-1 rounded-lg bg-slate-200 px-3 py-2 hover:bg-slate-300" onClick={requestCloseTodoDetail}>取消</button>
               </div>
             </div>
           </aside>
@@ -436,30 +445,30 @@ export function TodoPage() {
                 }}
               />
             ))}
-            {!dayTodos.length && <div className="rounded border border-dashed p-6 text-center text-slate-500">当天暂无待办</div>}
+            {!dayTodos.length && <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-slate-500">当天暂无待办</div>}
           </div>
         </SortableContext>
       </DndContext>
 
       {conversionTodoId && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-sm rounded bg-white p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
             <h3 className="text-lg font-semibold">完成待办并转换</h3>
             <p className="mt-1 text-sm text-slate-600">请选择转换类型：</p>
             <div className="mt-3 flex gap-2">
-              <button className="flex-1 rounded bg-emerald-600 px-3 py-2 text-white" onClick={() => convert("order")}>正式订单</button>
-              <button className="flex-1 rounded bg-amber-600 px-3 py-2 text-white" onClick={() => convert("opportunity")}>线索/机会</button>
+              <button className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700" onClick={() => convert("order")}>正式订单</button>
+              <button className="flex-1 rounded-lg bg-amber-600 px-3 py-2 text-white hover:bg-amber-700" onClick={() => convert("opportunity")}>线索/机会</button>
             </div>
-            <button className="mt-3 w-full rounded bg-slate-200 px-3 py-2" onClick={() => setConversionTodoId(null)}>取消</button>
+            <button className="mt-3 w-full rounded-lg bg-slate-200 px-3 py-2 hover:bg-slate-300" onClick={() => setConversionTodoId(null)}>取消</button>
           </div>
         </div>
       )}
       {confirmDuplicateCustomer && pendingCreatePayload && (
         <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-lg rounded bg-white p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
             <h3 className="text-lg font-semibold">发现可能重复客户</h3>
             <p className="mt-1 text-sm text-slate-600">输入名称与已有客户近似，请先选择已有客户，或确认仍然新建。</p>
-            <div className="mt-3 space-y-2 rounded border bg-slate-50 p-2">
+            <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
               {duplicateCandidates.map((candidate) => {
                 const compared = getComparisonHighlights(pendingCreatePayload.customerName, candidate.name);
                 return (

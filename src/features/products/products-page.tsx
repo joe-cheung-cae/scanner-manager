@@ -28,35 +28,35 @@ function EditableProductCard({
   const dirty = draftNotes !== (product.specs.notes || "");
 
   return (
-    <div className="rounded border bg-white p-3">
+    <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="font-medium">{product.model}</div>
           <div className="text-sm text-slate-600">{product.name}</div>
         </div>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs">{product.status || "-"}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{product.status || "-"}</span>
       </div>
       <div className="mt-2 text-xs text-slate-600">
         扫码类型: {product.specs.scan?.codeTypes?.join("/") || "-"} · 接口: {product.specs.comms?.wired?.join("/") || "-"} · 无线: {product.specs.comms?.wireless?.join("/") || "-"}
       </div>
       <textarea
-        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        className="mt-2 w-full rounded-lg px-2 py-1 text-sm"
         value={draftNotes}
         onChange={(e) => setDraftNotes(e.target.value)}
         placeholder="规格备注"
       />
       <div className="mt-2 flex gap-2">
         <button
-          className="flex-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white"
+          className="flex-1 rounded-lg bg-emerald-600 px-2 py-1 text-sm text-white hover:bg-emerald-700"
           disabled={!dirty}
           onClick={() => onSaveNotes(product.id, draftNotes)}
         >
           保存
         </button>
-        <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" disabled={!dirty} onClick={() => setConfirmDiscard(true)}>
+        <button className="flex-1 rounded-lg bg-slate-200 px-2 py-1 text-sm hover:bg-slate-300" disabled={!dirty} onClick={() => setConfirmDiscard(true)}>
           取消
         </button>
-        <button className="rounded bg-rose-600 px-2 py-1 text-sm text-white" onClick={() => onDelete(product.id)}>
+        <button className="rounded-lg bg-rose-600 px-2 py-1 text-sm text-white hover:bg-rose-700" onClick={() => onDelete(product.id)}>
           删除
         </button>
       </div>
@@ -113,7 +113,7 @@ export function ProductsPage() {
 
   return (
     <section className="space-y-4">
-      {message && <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
+      {message && <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-xl font-semibold">产品库</h2>
         <DownloadButton filename="products.csv" content={exportProductsToCsv(products)} label="导出产品 CSV" />
@@ -124,11 +124,11 @@ export function ProductsPage() {
         />
       </div>
 
-      <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-3">
-        <input className="rounded border px-2 py-2" placeholder="型号" value={model} onChange={(e) => setModel(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="名称" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-3">
+        <input className="rounded-lg px-2 py-2" placeholder="型号" value={model} onChange={(e) => setModel(e.target.value)} />
+        <input className="rounded-lg px-2 py-2" placeholder="名称" value={name} onChange={(e) => setName(e.target.value)} />
         <button
-          className="rounded bg-sky-600 px-3 py-2 text-white"
+          className="rounded-lg bg-sky-600 px-3 py-2 text-white hover:bg-sky-700"
           onClick={() => {
             if (!model.trim() || !name.trim()) return;
             addProduct({ model: model.trim(), name: name.trim(), productType: "catalog", status: "在售" });
@@ -140,12 +140,12 @@ export function ProductsPage() {
         </button>
       </div>
 
-      <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-5">
-        <input className="rounded border px-2 py-2" placeholder="搜索型号/规格" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="扫码类型过滤" value={codeType} onChange={(e) => setCodeType(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="有线接口过滤" value={wired} onChange={(e) => setWired(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="无线过滤" value={wireless} onChange={(e) => setWireless(e.target.value)} />
-        <select className="rounded border px-2 py-2" value={status} onChange={(e) => setStatus(e.target.value)}>
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-5">
+        <input className="rounded-lg px-2 py-2" placeholder="搜索型号/规格" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input className="rounded-lg px-2 py-2" placeholder="扫码类型过滤" value={codeType} onChange={(e) => setCodeType(e.target.value)} />
+        <input className="rounded-lg px-2 py-2" placeholder="有线接口过滤" value={wired} onChange={(e) => setWired(e.target.value)} />
+        <input className="rounded-lg px-2 py-2" placeholder="无线过滤" value={wireless} onChange={(e) => setWireless(e.target.value)} />
+        <select className="rounded-lg px-2 py-2" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">全部状态</option>
           <option value="在售">在售</option>
           <option value="停产">停产</option>
@@ -153,7 +153,7 @@ export function ProductsPage() {
         </select>
       </div>
 
-      <div className="rounded border bg-white p-3">
+      <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
         <label className="mb-2 block text-sm font-medium">导入产品（CSV / JSON）</label>
         <div className="grid gap-2 md:grid-cols-2">
           <input

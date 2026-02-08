@@ -22,6 +22,8 @@ describe("CustomerCombobox", () => {
         customers={customers}
         value={value}
         selectedCustomerId={selectedCustomerId}
+        orderCountByCustomerId={{ c1: 2, c2: 5, c3: 0 }}
+        todoCountByCustomerId={{ c1: 1, c2: 3, c3: 0 }}
         onInputChange={(next) => {
           setValue(next);
           if (selectedCustomerId) setSelectedCustomerId(null);
@@ -59,5 +61,14 @@ describe("CustomerCombobox", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onSelectCustomer).toHaveBeenCalledTimes(1);
+  });
+
+  it("候选项应显示来源信息（关联订单数与关联待办数）", () => {
+    const onSelectCustomer = vi.fn();
+    render(<Harness onSelectCustomer={onSelectCustomer} />);
+    const input = screen.getByRole("combobox", { name: "客户名称" });
+    fireEvent.change(input, { target: { value: "深圳" } });
+
+    expect(screen.getByText("关联订单 5 · 关联待办 3")).toBeInTheDocument();
   });
 });

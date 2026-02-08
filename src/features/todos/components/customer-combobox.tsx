@@ -3,10 +3,27 @@
 import { useMemo, useState } from "react";
 import type { Customer } from "@/domain/types";
 
+function highlightName(name: string, query: string): Array<{ text: string; match: boolean }> {
+  const q = query.trim();
+  if (!q) return [{ text: name, match: false }];
+  const lowerName = name.toLowerCase();
+  const lowerQ = q.toLowerCase();
+  const idx = lowerName.indexOf(lowerQ);
+  if (idx < 0) return [{ text: name, match: false }];
+  const end = idx + q.length;
+  const parts: Array<{ text: string; match: boolean }> = [];
+  if (idx > 0) parts.push({ text: name.slice(0, idx), match: false });
+  parts.push({ text: name.slice(idx, end), match: true });
+  if (end < name.length) parts.push({ text: name.slice(end), match: false });
+  return parts;
+}
+
 export function CustomerCombobox({
   customers,
   value,
   selectedCustomerId,
+  orderCountByCustomerId,
+  todoCountByCustomerId,
   onInputChange,
   onSelectCustomer,
   invalid,
@@ -15,6 +32,8 @@ export function CustomerCombobox({
   customers: Customer[];
   value: string;
   selectedCustomerId: string | null;
+  orderCountByCustomerId?: Record<string, number>;
+  todoCountByCustomerId?: Record<string, number>;
   onInputChange: (value: string) => void;
   onSelectCustomer: (customer: Customer) => void;
   invalid?: boolean;
@@ -90,20 +109,38 @@ export function CustomerCombobox({
       {errorMessage && <p className="mt-1 text-xs text-rose-600">{errorMessage}</p>}
       {selectedName && <div className="mt-1 text-xs text-emerald-700">已选客户：{selectedName}</div>}
       {open && candidates.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded border bg-white shadow-md">
-          <ul id="todo-customer-candidate-list" role="listbox" className="max-h-64 overflow-y-auto py-1">
+        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 shadow-xl">
+          <ul id="todo-customer-candidate-list" role="listbox" className="max-h-72 overflow-y-auto p-2">
             {candidates.map((customer, index) => (
               <li key={customer.id}>
                 <button
                   type="button"
                   role="option"
                   aria-selected={highlightedIndex === index}
-                  className={`w-full px-3 py-2 text-left text-sm ${highlightedIndex === index ? "bg-sky-100" : "hover:bg-slate-100"}`}
+                  className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                    highlightedIndex === index
+                      ? "border-sky-300 bg-sky-100 shadow-sm"
+                      : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-100"
+                  }`}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onClick={() => applySelection(customer)}
                   aria-label={`选择客户 ${customer.name}`}
                 >
-                  {customer.name}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {highlightName(customer.name, value).map((part, idx) => (
+                          <span key={`${customer.id}-name-${idx}`} className={part.match ? "rounded bg-amber-200 px-0.5" : ""}>
+                            {part.text}
+                          </span>
+                        ))}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        关联订单 {orderCountByCustomerId?.[customer.id] || 0} · 关联待办 {todoCountByCustomerId?.[customer.id] || 0}
+                      </p>
+                    </div>
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Enter 选择</span>
+                  </div>
                 </button>
               </li>
             ))}

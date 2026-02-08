@@ -30,33 +30,33 @@ export function RecycleBinPage() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold">回收站</h2>
-      <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-3">
-        <input className="rounded border px-2 py-2" placeholder="搜索名称/型号/订单号" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select className="rounded border px-2 py-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-3">
+        <input className="rounded-lg px-2 py-2" placeholder="搜索名称/型号/订单号" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <select className="rounded-lg px-2 py-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
           <option value="">全部类型</option>
           <option value="order">订单</option>
           <option value="customer">客户</option>
           <option value="product">产品</option>
         </select>
-        <div className="rounded bg-slate-100 px-3 py-2 text-sm text-slate-700">总计 {list.length} 条</div>
+        <div className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">总计 {list.length} 条</div>
       </div>
 
-      {message && <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
+      {message && <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
 
       <div className="space-y-2">
         {list.map((item) => {
           const snapshot = item.snapshot as { name?: string; model?: string; orderNo?: string };
           return (
-            <div key={item.id} className="rounded border bg-white p-3">
+            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded bg-slate-100 px-2 py-1 text-xs">{item.entityType}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{item.entityType}</span>
                 <span className="font-medium">{snapshot.orderNo || snapshot.name || snapshot.model || item.entityId}</span>
                 <span className="text-xs text-slate-500">删除时间：{new Date(item.deletedAt).toLocaleString("zh-CN")}</span>
               </div>
               {item.reason && <div className="mt-1 text-xs text-slate-600">原因：{item.reason}</div>}
               <div className="mt-2 flex gap-2">
                 <button
-                  className="rounded bg-emerald-600 px-3 py-1 text-sm text-white"
+                  className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
                   onClick={() => {
                     const result = restore(item.id);
                     setMessage(result.ok ? "恢复成功。" : result.message || "恢复失败。");
@@ -64,7 +64,7 @@ export function RecycleBinPage() {
                 >
                   恢复
                 </button>
-                <button className="rounded bg-rose-600 px-3 py-1 text-sm text-white" onClick={() => setPendingPurgeId(item.id)}>
+                <button className="rounded-lg bg-rose-600 px-3 py-1 text-sm text-white hover:bg-rose-700" onClick={() => setPendingPurgeId(item.id)}>
                   永久删除
                 </button>
               </div>
