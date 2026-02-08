@@ -30,41 +30,41 @@ function EditableCustomerCard({
   };
 
   return (
-    <div className="rounded border bg-white p-3">
+    <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="font-medium">{customer.name}</div>
-        <span className="text-xs text-slate-500">
+        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
           关联订单 {orderCount} · 关联待办 {todoTitles.length}
         </span>
       </div>
       <input
-        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        className="mt-2 w-full rounded-lg px-2 py-1 text-sm"
         value={draftPhone}
         onChange={(e) => setDraftPhone(e.target.value)}
         placeholder="电话"
       />
       <textarea
-        className="mt-2 w-full rounded border px-2 py-1 text-sm"
+        className="mt-2 w-full rounded-lg px-2 py-1 text-sm"
         value={draftNotes}
         onChange={(e) => setDraftNotes(e.target.value)}
         placeholder="备注"
       />
       <div className="mt-2 flex gap-2">
         <button
-          className="flex-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white"
+          className="flex-1 rounded-lg bg-emerald-600 px-2 py-1 text-sm text-white hover:bg-emerald-700"
           onClick={() => onSave(customer.id, { phone: draftPhone, notes: draftNotes })}
           disabled={!dirty}
         >
           保存
         </button>
-        <button className="flex-1 rounded bg-slate-200 px-2 py-1 text-sm" onClick={requestCancel} disabled={!dirty}>
+        <button className="flex-1 rounded-lg bg-slate-200 px-2 py-1 text-sm hover:bg-slate-300" onClick={requestCancel} disabled={!dirty}>
           取消
         </button>
-        <button className="rounded bg-rose-600 px-2 py-1 text-sm text-white" onClick={() => onDelete(customer.id)}>
+        <button className="rounded-lg bg-rose-600 px-2 py-1 text-sm text-white hover:bg-rose-700" onClick={() => onDelete(customer.id)}>
           删除
         </button>
       </div>
-      <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-600">
+      <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
         最近待办：
         {todoTitles.slice(-3).join(" / ") || "无"}
       </div>
@@ -97,6 +97,7 @@ export function CustomersPage() {
   const [phone, setPhone] = useState("");
   const [pendingDeleteCustomerId, setPendingDeleteCustomerId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -107,35 +108,104 @@ export function CustomersPage() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold">客户库</h2>
-      {message && <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
-      <div className="grid gap-2 rounded border bg-white p-3 md:grid-cols-3">
-        <input className="rounded border px-2 py-2" placeholder="客户名称" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="rounded border px-2 py-2" placeholder="电话（可选）" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <button
-          className="rounded bg-sky-600 px-3 py-2 text-white"
-          onClick={() => {
-            if (!name.trim()) return;
-            addCustomer({ name: name.trim(), phone: phone.trim() || undefined });
-            setName("");
-            setPhone("");
-          }}
-        >
-          新建客户
-        </button>
+      {message && <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-3 shadow-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-medium text-slate-900">新建客户</h3>
+          <span className="text-xs text-slate-500">支持姓名与电话快速录入</span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-3">
+          <input className="rounded-lg border border-slate-200 bg-white px-3 py-2" placeholder="客户名称（必填）" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="rounded-lg border border-slate-200 bg-white px-3 py-2" placeholder="电话（可选）" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <button
+            className="rounded-lg bg-sky-600 px-3 py-2 text-white shadow-sm transition hover:bg-sky-700"
+            onClick={() => {
+              if (!name.trim()) return;
+              addCustomer({ name: name.trim(), phone: phone.trim() || undefined });
+              setName("");
+              setPhone("");
+            }}
+          >
+            新建客户
+          </button>
+        </div>
       </div>
-      <input className="w-full rounded border bg-white px-2 py-2" placeholder="搜索客户" value={query} onChange={(e) => setQuery(e.target.value)} />
-      <div className="grid gap-3 md:grid-cols-2">
-        {list.map((customer) => (
-          <EditableCustomerCard
-            key={customer.id}
-            customer={customer}
-            orderCount={orders.filter((o) => o.customerId === customer.id).length}
-            todoTitles={todos.filter((t) => t.customerId === customer.id).map((t) => t.title)}
-            onSave={updateCustomer}
-            onDelete={setPendingDeleteCustomerId}
-          />
-        ))}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <div className="text-sm text-slate-600">客户搜索</div>
+          <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">结果 {list.length}</span>
+          {!!query && (
+            <button className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700 hover:bg-slate-200" onClick={() => setQuery("")}>
+              清空搜索
+            </button>
+          )}
+          <div className="ml-auto inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${viewMode === "card" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}
+              onClick={() => setViewMode("card")}
+            >
+              卡片视图
+            </button>
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${viewMode === "list" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}
+              onClick={() => setViewMode("list")}
+            >
+              列表视图
+            </button>
+          </div>
+        </div>
+        <input className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2" placeholder="搜索客户（姓名/联系人/电话/区域）" value={query} onChange={(e) => setQuery(e.target.value)} />
       </div>
+
+      {viewMode === "card" && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {list.map((customer) => (
+            <EditableCustomerCard
+              key={customer.id}
+              customer={customer}
+              orderCount={orders.filter((o) => o.customerId === customer.id).length}
+              todoTitles={todos.filter((t) => t.customerId === customer.id).map((t) => t.title)}
+              onSave={updateCustomer}
+              onDelete={setPendingDeleteCustomerId}
+            />
+          ))}
+        </div>
+      )}
+
+      {viewMode === "list" && (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table aria-label="客户列表" className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-3 py-2 text-left">客户</th>
+                <th className="px-3 py-2 text-left">电话</th>
+                <th className="px-3 py-2 text-left">关联订单</th>
+                <th className="px-3 py-2 text-left">关联待办</th>
+                <th className="px-3 py-2 text-left">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((customer) => {
+                const orderCount = orders.filter((o) => o.customerId === customer.id).length;
+                const todoCount = todos.filter((t) => t.customerId === customer.id).length;
+                return (
+                  <tr key={customer.id} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-medium text-slate-900">{customer.name}</td>
+                    <td className="px-3 py-2 text-slate-600">{customer.phone || "-"}</td>
+                    <td className="px-3 py-2 text-slate-600">{orderCount}</td>
+                    <td className="px-3 py-2 text-slate-600">{todoCount}</td>
+                    <td className="px-3 py-2">
+                      <button className="rounded bg-rose-600 px-2 py-1 text-xs text-white" onClick={() => setPendingDeleteCustomerId(customer.id)}>
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       <ConfirmModal
         open={!!pendingDeleteCustomerId}
         title="确认删除客户"
