@@ -3,6 +3,14 @@
 import { useMemo, useState } from "react";
 import { useAppStore } from "@/store/appStore";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/layout/filter-bar";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export function RecycleBinPage() {
   const recycleBin = useAppStore((s) => s.recycleBin);
@@ -28,51 +36,68 @@ export function RecycleBinPage() {
   }, [recycleBin, typeFilter, query]);
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-semibold">回收站</h2>
-      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-3">
-        <input className="rounded-lg px-2 py-2" placeholder="搜索名称/型号/订单号" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select className="rounded-lg px-2 py-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
-          <option value="">全部类型</option>
-          <option value="order">订单</option>
-          <option value="customer">客户</option>
-          <option value="product">产品</option>
-        </select>
-        <div className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">总计 {list.length} 条</div>
-      </div>
+    <section className="space-y-6">
+      <PageHeader title="回收站" description="支持恢复与永久删除。危险操作统一二次确认。" />
 
-      {message && <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
+      {message ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div> : null}
 
-      <div className="space-y-2">
-        {list.map((item) => {
-          const snapshot = item.snapshot as { name?: string; model?: string; orderNo?: string };
-          return (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{item.entityType}</span>
-                <span className="font-medium">{snapshot.orderNo || snapshot.name || snapshot.model || item.entityId}</span>
-                <span className="text-xs text-slate-500">删除时间：{new Date(item.deletedAt).toLocaleString("zh-CN")}</span>
-              </div>
-              {item.reason && <div className="mt-1 text-xs text-slate-600">原因：{item.reason}</div>}
-              <div className="mt-2 flex gap-2">
-                <button
-                  className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
-                  onClick={() => {
-                    const result = restore(item.id);
-                    setMessage(result.ok ? "恢复成功。" : result.message || "恢复失败。");
-                  }}
-                >
-                  恢复
-                </button>
-                <button className="rounded-lg bg-rose-600 px-3 py-1 text-sm text-white hover:bg-rose-700" onClick={() => setPendingPurgeId(item.id)}>
-                  永久删除
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {!list.length && <div className="rounded border border-dashed p-6 text-center text-slate-500">回收站为空</div>}
-      </div>
+      <FilterBar>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+          <Input placeholder="搜索名称/型号/订单号" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
+            <option value="">全部类型</option>
+            <option value="order">订单</option>
+            <option value="customer">客户</option>
+            <option value="product">产品</option>
+          </Select>
+          <Button variant="secondary" onClick={() => { setQuery(""); setTypeFilter(""); }}>
+            清空筛选
+          </Button>
+        </div>
+      </FilterBar>
+
+      {!list.length ? (
+        <EmptyState
+          title="回收站为空"
+          description="当前没有已删除数据。"
+          action={{ label: "返回并继续工作", variant: "secondary", onClick: () => { setQuery(""); setTypeFilter(""); } }}
+        />
+      ) : null}
+
+      {list.length ? (
+        <div className="grid gap-3">
+          {list.map((item) => {
+            const snapshot = item.snapshot as { name?: string; model?: string; orderNo?: string };
+            return (
+              <Card key={item.id}>
+                <CardContent className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="default">{item.entityType}</Badge>
+                    <p className="text-sm font-medium text-slate-900">{snapshot.orderNo || snapshot.name || snapshot.model || item.entityId}</p>
+                    <p className="text-xs text-slate-500">删除时间：{new Date(item.deletedAt).toLocaleString("zh-CN")}</p>
+                  </div>
+                  {item.reason ? <p className="text-xs text-slate-500">原因：{item.reason}</p> : null}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const result = restore(item.id);
+                        setMessage(result.ok ? "恢复成功。" : result.message || "恢复失败。");
+                      }}
+                    >
+                      恢复
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setPendingPurgeId(item.id)}>
+                      彻底删除
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : null}
 
       <ConfirmModal
         open={!!pendingPurgeId}

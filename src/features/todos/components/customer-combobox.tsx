@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Customer } from "@/domain/types";
+import { cn } from "@/lib/cn";
 
 function highlightName(name: string, query: string): Array<{ text: string; match: boolean }> {
   const q = query.trim();
@@ -74,7 +75,10 @@ export function CustomerCombobox({
         role="combobox"
         aria-expanded={open && candidates.length > 0}
         aria-controls="todo-customer-candidate-list"
-        className={`w-full rounded border px-2 py-2 ${invalid ? "border-rose-500 ring-1 ring-rose-200" : ""}`}
+        className={cn(
+          "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-200",
+          invalid ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200" : "",
+        )}
         placeholder="客户名称（必填）"
         value={value}
         onFocus={() => setOpen(true)}
@@ -106,10 +110,10 @@ export function CustomerCombobox({
           }
         }}
       />
-      {errorMessage && <p className="mt-1 text-xs text-rose-600">{errorMessage}</p>}
-      {selectedName && <div className="mt-1 text-xs text-emerald-700">已选客户：{selectedName}</div>}
-      {open && candidates.length > 0 && (
-        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 shadow-xl">
+      {errorMessage ? <p className="mt-1 text-xs text-rose-600">{errorMessage}</p> : null}
+      {selectedName ? <div className="mt-1 text-xs text-emerald-700">已选客户：{selectedName}</div> : null}
+      {open && candidates.length > 0 ? (
+        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
           <ul id="todo-customer-candidate-list" role="listbox" className="max-h-72 overflow-y-auto p-2">
             {candidates.map((customer, index) => (
               <li key={customer.id}>
@@ -117,11 +121,12 @@ export function CustomerCombobox({
                   type="button"
                   role="option"
                   aria-selected={highlightedIndex === index}
-                  className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  className={cn(
+                    "mb-1 w-full rounded-xl border px-3 py-2 text-left text-sm transition",
                     highlightedIndex === index
-                      ? "border-sky-300 bg-sky-100 shadow-sm"
-                      : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-100"
-                  }`}
+                      ? "border-sky-300 bg-sky-50"
+                      : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50",
+                  )}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onClick={() => applySelection(customer)}
                   aria-label={`选择客户 ${customer.name}`}
@@ -139,14 +144,14 @@ export function CustomerCombobox({
                         关联订单 {orderCountByCustomerId?.[customer.id] || 0} · 关联待办 {todoCountByCustomerId?.[customer.id] || 0}
                       </p>
                     </div>
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Enter 选择</span>
+                    <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Enter</span>
                   </div>
                 </button>
               </li>
             ))}
           </ul>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

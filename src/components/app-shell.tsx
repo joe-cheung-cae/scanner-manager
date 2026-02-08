@@ -1,20 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/appStore";
-
-const NAVS = [
-  { href: "/", label: "今日待办" },
-  { href: "/orders", label: "订单库" },
-  { href: "/customers", label: "客户库" },
-  { href: "/products", label: "产品库" },
-  { href: "/recycle-bin", label: "回收站" },
-];
+import { AppHeader } from "@/components/layout/app-header";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const hydrate = useAppStore((s) => s.hydrate);
   const fallback = useAppStore((s) => s.storageFallback);
   const storageError = useAppStore((s) => s.storageError);
@@ -60,34 +50,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
-          <h1 className="mr-3 rounded-lg bg-slate-900 px-3 py-1 text-lg font-semibold tracking-wide text-white">扫码枪销售助理</h1>
-          {NAVS.map((nav) => (
-            <Link
-              key={nav.href}
-              href={nav.href}
-              className={`rounded-lg px-3 py-1 text-sm font-medium ${
-                pathname === nav.href
-                  ? "bg-sky-600 text-white shadow-sm shadow-sky-300/40"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              {nav.label}
-            </Link>
-          ))}
-          <div className="ml-auto text-sm">
-            {online === null && <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-500">网络状态检测中</span>}
-            {online === true && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">在线</span>}
-            {online === false && <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">离线</span>}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <AppHeader online={online} />
+      <div className="pointer-events-none absolute inset-x-0 top-[57px] h-40 bg-gradient-to-b from-sky-100/80 via-sky-50/30 to-transparent" />
       {(fallback || storageError) && (
-        <div className="border-b border-amber-200 bg-amber-100 px-4 py-2 text-sm text-amber-800">{storageError || "存储降级：已切换兜底模式"}</div>
+        <div className="border-b border-amber-200 bg-amber-50/90 px-6 py-2 text-sm text-amber-800">{storageError || "存储降级：已切换兜底模式"}</div>
       )}
-      <main className="mx-auto max-w-6xl p-4 md:p-5">{children}</main>
+      <main className="relative z-10 mx-auto max-w-6xl px-6 py-6">{children}</main>
     </div>
   );
 }
